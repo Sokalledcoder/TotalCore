@@ -36,7 +36,12 @@ class IndicatorRegistry:
         return cls(indicators)
 
     def compute(self, frame: pd.DataFrame) -> pd.DataFrame:
-        result = pd.DataFrame(index=frame.index)
+        if not self._indicators:
+            return pd.DataFrame(index=frame.index)
+
+        columns = []
         for indicator in self._indicators:
-            result = result.join(indicator.compute(frame))
-        return result.fillna(0.0)
+            indicator_frame = indicator.compute(frame)
+            aligned = indicator_frame.reindex(frame.index)
+            columns.append(aligned)
+        return pd.concat(columns, axis=1).fillna(0.0)

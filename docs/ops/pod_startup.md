@@ -4,6 +4,9 @@ Follow these steps whenever you spin up a fresh pod. The network volume **Volume
 
 ## 1. Launch the Pod
 
+> **Operator Reminder (Nov 2025)**
+> Always document the precise value you used (volume IDs, repo URLs, commands) and paste them directly into instructions for the next session. No placeholders, no assumptions about missing UI buttons. If you discover the UI behaves differently for someone else, stop and verify the real selectors before telling them what to click. This avoids the loop we hit on 2025-11-13 when multiple pods were created without VolumeCore simply because the exact instructions weren’t written down.
+
 ### Option A – UI (On-Demand / Spot)
 1. Pods → **Deploy Pod** → choose **RTX A4500 (1x)** and region **EU-RO-1** (must match the volume).
 2. Container Image: `runpod/pytorch:1.0.2-cu1281-torch280-ubuntu2404`.

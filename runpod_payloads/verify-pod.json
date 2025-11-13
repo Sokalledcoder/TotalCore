@@ -1,0 +1,21 @@
+{
+  "name": "tradecore-a4500",
+  "imageName": "runpod/pytorch:1.0.2-cu1281-torch280-ubuntu2404",
+  "gpuTypeId": "NVIDIA RTX A4500",
+  "cloudType": "SECURE",
+  "containerDiskInGb": 40,
+  "env": [
+    {
+      "key": "TRAIN_CONFIG",
+      "value": "configs/train/ppo_cpu_baseline.json"
+    },
+    {
+      "key": "RUN_TAG",
+      "value": "verify-pod"
+    }
+  ],
+  "ports": [],
+  "cmd": "cd /workspace/TradeCore && python scripts/run_experiment.py --train-config configs/train/ppo_cpu_baseline.json --episodes 1 --seed 123 --tag verify-pod",
+  "volumeId": "6wlciwn57c",
+  "volumeMountPath": "/workspace"
+}

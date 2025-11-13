@@ -13,6 +13,23 @@ import pyarrow.dataset as ds
 from .config import DatasetManifest, DatasetSlice
 
 
+def load_dataset_frame(path: str | Path) -> pd.DataFrame:
+    """Load a parquet directory/file into a timestamp-indexed DataFrame."""
+
+    dataset = ds.dataset(path, format="parquet")
+    table = dataset.to_table()
+    df = table.to_pandas()
+    if "timestamp" in df.columns:
+        df["timestamp"] = pd.to_datetime(df["timestamp"], utc=True, errors="coerce")
+        df = df.set_index("timestamp")
+    elif "__index_level_0__" in df.columns:
+        df["timestamp"] = pd.to_datetime(df["__index_level_0__"], utc=True, errors="coerce")
+        df = df.drop(columns="__index_level_0__").set_index("timestamp")
+    else:
+        df.index = pd.to_datetime(df.index, utc=True, errors="coerce")
+    return df.sort_index()
+
+
 def _to_utc_timestamp(value) -> pd.Timestamp:
     ts = pd.Timestamp(value)
     if ts.tzinfo is None:
@@ -44,18 +61,7 @@ class DatasetWindowSource:
         if cached is not None:
             return cached
 
-        dataset = ds.dataset(path, format="parquet")
-        table = dataset.to_table()
-        df = table.to_pandas()
-        if "timestamp" in df.columns:
-            df["timestamp"] = pd.to_datetime(df["timestamp"], utc=True, errors="coerce")
-            df = df.set_index("timestamp")
-        elif "__index_level_0__" in df.columns:
-            df["timestamp"] = pd.to_datetime(df["__index_level_0__"], utc=True, errors="coerce")
-            df = df.drop(columns="__index_level_0__").set_index("timestamp")
-        else:
-            df.index = pd.to_datetime(df.index, utc=True, errors="coerce")
-        df = df.sort_index()
+        df = load_dataset_frame(path)
         self._cache[path] = df
         return df
 

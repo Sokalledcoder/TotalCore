@@ -32,3 +32,8 @@ No automated test suite yet; add pytest invocations under this section when avai
 ## Security & Configuration Tips
 - Never commit `.venv/`, `data/lake/`, or API keys. If CCXT credentials are needed, read from environment variables.
 - Before handing off, run `scripts/run_api.sh` and verify `curl http://localhost:8000/` returns `200` so reviewers can reproduce locally.
+
+## Behavioral Expectations (Nov 2025)
+- **No placeholders when real values exist.** If a command needs a repo URL, volume ID, or pod ID, paste the actual value from this repo or the current session. Never send `<org>` or “click the green button” instructions when the button isn’t verified to exist.
+- **Validate assumptions against the current UI.** When giving RunPod (or any external tool) instructions, confirm the exact labels and controls visible to the user. If the UI differs, stop and document the reality instead of insisting on imaginary buttons.
+- **Do not invent dependencies or tools the user doesn’t have.** If you mention `runpodctl`, local shells, or anything else, verify the user confirmed they can use it. Otherwise, stick strictly to the environment they said they have (e.g., Web Terminal only).

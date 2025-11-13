@@ -871,3 +871,4 @@ INFO:     127.0.0.1:42642 - "GET /.well-known/appspecific/com.chrome.devtools.js
 INFO:     127.0.0.1:42642 - "GET /static/styles.css HTTP/1.1" 304 Not Modified
 INFO:     127.0.0.1:42656 - "GET /static/fetch-history.js HTTP/1.1" 304 Not Modified
 INFO:     127.0.0.1:42656 - "GET /api/data-coverage?exchange=kraken&symbol=BTC%2FUSD HTTP/1.1" 200 OK
+INFO:     127.0.0.1:39214 - "GET /favicon.ico HTTP/1.1" 404 Not Found

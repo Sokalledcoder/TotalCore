@@ -1,7 +1,7 @@
 """Gymnasium-compatible trading environment."""
 from __future__ import annotations
 
-from typing import Any, Dict, Tuple
+from typing import Any, Dict
 
 import gymnasium as gym
 import numpy as np
@@ -88,9 +88,9 @@ class TradeEnvironment(gym.Env):
 
         decoded = self.action_spec.decode(action)
         current_price = float(self._current_window.iloc[self._cursor - 1]["close"])
-        target_units, stop_price = self.risk_guard.plan(decoded, current_price, self._account)
-        fees_paid = self.execution.execute_limit(target_units, current_price, self._account)
-        self._account.stop_price = stop_price
+        risk_plan = self.risk_guard.plan(decoded, current_price, self._account)
+        fees_paid = self.execution.execute_limit(risk_plan.target_units, current_price, self._account)
+        self._account.stop_price = risk_plan.stop_price
         prev_equity = self._account.equity
 
         self._cursor += 1
@@ -114,6 +114,21 @@ class TradeEnvironment(gym.Env):
         obs = self.obs_builder.build(obs_window, self._account)
 
         info = self._build_info()
+        info.update(
+            {
+                "target_position": risk_plan.target_units,
+                "desired_position": decoded.direction * risk_plan.desired_units,
+                "risk_units": risk_plan.risk_units,
+                "risk_capital": risk_plan.risk_capital,
+                "stop_distance": risk_plan.stop_distance,
+                "limit_fee": fees_paid,
+                "stop_fee": stop_fees,
+                "decision_direction": decoded.direction,
+                "decision_size_fraction": decoded.size_fraction,
+                "decision_stop_loss_idx": decoded.stop_loss_idx,
+                "decision_take_profit_idx": decoded.take_profit_idx,
+            }
+        )
         info.update(reward_result.info)
         truncated = False
         return obs, reward_result.reward, terminated, truncated, info
