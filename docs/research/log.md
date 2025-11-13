@@ -446,3 +446,20 @@
 ### Next Steps
 - Implement the real HTTP call (with retries/status polling) and hook it into CI or a CLI flag once credentials are available.
 - Mirror the `runpod_submissions/` log into `docs/ops/runpod.md` so ops folks can trace which configs went up when.
+
+## 2025-11-13 — Topic: RunPod Pod Bootstrap + Dataset Packaging
+
+### Sources
+- `docs/ops/pod_startup.md`
+- `data/manifests/btcusd_1m_sepnov2025.json`, `data/lake/kraken/BTC-USD/1m/year=2025/*.parquet`
+- Pod `alqaw7msy850ww` smoke run (`scripts/run_experiment.py` output)
+
+### Key Notes
+1. Added the BTC/USD manifest + parquet partition directly to git so every clone (local or pod) ships with the same coverage; no more manual uploads.
+2. Created `docs/ops/pod_startup.md` documenting the exact RunPod template/image, volume attachment, env bootstrap commands (`PYTHONPATH`, pip cache tweaks), and the smoke-test flow.
+3. Verified end-to-end by running `scripts/run_experiment.py --train-config configs/train/ppo_cpu_baseline.json --tag pod-smoke` on pod `alqaw7msy850ww` (spot RTX A4500). Training/eval succeeded and archived artifacts under `/workspace/TradeCore/runs/experiments/20251113T032214Z_pod-smoke`.
+4. Documented common failure modes (manifest missing, disk quota, CUDA image mismatch) so the next pod can be ready within minutes.
+
+### Next Actions
+- Wire the same workflow into the RunPod API client so pods can be launched/teardown automatically.
+- Re-run the smoke test on each new template update to ensure env + datasets stay consistent.
