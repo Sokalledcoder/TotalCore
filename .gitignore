@@ -10,7 +10,7 @@ __pycache__/
 .env
 
 # Local data/artifacts
-/data/
+data/jobs.db
 /runs/
 /models/
 /runpod_submissions/
