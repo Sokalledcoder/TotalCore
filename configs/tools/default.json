@@ -1,0 +1,6 @@
+{
+  "indicators": [
+    {"name": "vwap", "params": {"window": 30}},
+    {"name": "zscore", "params": {"window": 60, "field": "close"}}
+  ]
+}

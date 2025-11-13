@@ -1,9 +1,14 @@
 {
   "dataset_manifest_path": "data/manifests/btcusd_1m_sepnov2025.json",
+  "indicator_manifest_path": "configs/tools/default.json",
   "initial_cash": 100000.0,
   "max_position_size": 0.5,
   "fee_bps": 2.5,
   "slippage_bps": 5.0,
+  "risk_pct": 0.01,
+  "stop_loss_bps": 50.0,
+  "limit_fee_bps": 0.02,
+  "market_fee_bps": 0.05,
   "episode_minutes": 240,
   "observation": {
     "window_size": 64,

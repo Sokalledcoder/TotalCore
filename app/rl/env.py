@@ -13,6 +13,7 @@ from .datasets import DatasetWindowSource, SampledWindow, load_manifest
 from .execution import AccountState, ExecutionEngine
 from .rewards import RewardCalculator
 from .state_builder import ObservationBuilder
+from app.tools import IndicatorRegistry, RiskGuard
 
 
 class TradeEnvironment(gym.Env):
@@ -24,17 +25,28 @@ class TradeEnvironment(gym.Env):
         self.dataset = DatasetWindowSource(self.manifest)
         self.rng = np.random.default_rng()
 
+        self.indicators = None
+        if config.indicator_manifest_path:
+            self.indicators = IndicatorRegistry.from_manifest(config.indicator_manifest_path)
+
         self.action_spec = ActionSpec(config.action)
         self.execution = ExecutionEngine(
             max_position=config.max_position_size,
-            fee_rate=config.fee_rate,
+            limit_fee_rate=config.limit_fee_rate,
+            market_fee_rate=config.market_fee_rate,
             slippage_rate=config.slippage_rate,
+        )
+        self.risk_guard = RiskGuard(
+            risk_pct=config.risk_pct,
+            stop_loss_bps=config.stop_loss_bps,
+            max_position=config.max_position_size,
         )
         self.reward_calc = RewardCalculator(config.reward, scale=config.initial_cash)
         self.obs_builder = ObservationBuilder(
             config.observation,
             account_scale=config.initial_cash,
             max_position=config.max_position_size,
+            indicator_registry=self.indicators,
         )
         self.action_space = self.action_spec.space
         self.observation_space = self.obs_builder.space
@@ -76,7 +88,9 @@ class TradeEnvironment(gym.Env):
 
         decoded = self.action_spec.decode(action)
         current_price = float(self._current_window.iloc[self._cursor - 1]["close"])
-        fees_paid = self.execution.apply(decoded, current_price, self._account)
+        target_units, stop_price = self.risk_guard.plan(decoded, current_price, self._account)
+        fees_paid = self.execution.execute_limit(target_units, current_price, self._account)
+        self._account.stop_price = stop_price
         prev_equity = self._account.equity
 
         self._cursor += 1
@@ -89,8 +103,9 @@ class TradeEnvironment(gym.Env):
             next_price = float(self._current_window.iloc[self._cursor - 1]["close"])
 
         self._account.mark_to_market(next_price)
+        stop_fees = self._apply_stop_if_triggered(next_price)
         equity_delta = self._account.equity - prev_equity
-        reward_result = self.reward_calc.compute(equity_delta, fees_paid, self._account)
+        reward_result = self.reward_calc.compute(equity_delta, fees_paid + stop_fees, self._account)
 
         if terminated:
             obs_window = self._current_window.iloc[self._cursor - self.obs_builder.window_size : self._cursor]
@@ -114,4 +129,16 @@ class TradeEnvironment(gym.Env):
             "position": self._account.position,
             "equity": self._account.equity,
             "drawdown": self._account.drawdown,
+            "stop_price": self._account.stop_price,
         }
+
+    def _apply_stop_if_triggered(self, price: float) -> float:
+        if self._account is None or self._account.stop_price is None:
+            return 0.0
+        stop_price = self._account.stop_price
+        position = self._account.position
+        if position > 0 and price <= stop_price:
+            return self.execution.close_position_market(stop_price, self._account)
+        if position < 0 and price >= stop_price:
+            return self.execution.close_position_market(stop_price, self._account)
+        return 0.0

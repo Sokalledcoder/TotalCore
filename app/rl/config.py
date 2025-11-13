@@ -59,11 +59,16 @@ class RewardConfig(BaseModel):
 
 class EnvConfig(BaseModel):
     dataset_manifest_path: str
+    indicator_manifest_path: str | None = None
     initial_cash: float = Field(100_000.0, gt=0)
     max_position_size: float = Field(1.0, gt=0, description="Maximum absolute position in base units (e.g., BTC)")
     fee_bps: float = Field(1.0, ge=0, description="Commission in basis points per notional traded")
     slippage_bps: float = Field(2.0, ge=0)
     episode_minutes: int = Field(240, ge=32)
+    risk_pct: float = Field(0.01, gt=0)
+    stop_loss_bps: float = Field(50.0, gt=0)
+    limit_fee_bps: float = Field(0.02, ge=0)
+    market_fee_bps: float = Field(0.05, ge=0)
     observation: ObservationConfig = Field(default_factory=ObservationConfig)
     action: ActionConfig = Field(default_factory=ActionConfig)
     reward: RewardConfig = Field(default_factory=RewardConfig)
@@ -75,3 +80,11 @@ class EnvConfig(BaseModel):
     @property
     def slippage_rate(self) -> float:
         return self.slippage_bps / 10_000.0
+
+    @property
+    def limit_fee_rate(self) -> float:
+        return self.limit_fee_bps / 10_000.0
+
+    @property
+    def market_fee_rate(self) -> float:
+        return self.market_fee_bps / 10_000.0
