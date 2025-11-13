@@ -1,0 +1,26 @@
+# Python
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+*.egg-info/
+
+# Virtual environments
+.venv/
+.env
+
+# Local data/artifacts
+/data/
+/runs/
+/models/
+/runpod_submissions/
+runpod_payload.json
+tmp_payload.json
+*.tar.gz
+
+# Frontend build caches
+frontend/node_modules/
+
+# Tooling
+.pytest_cache/
+.DS_Store

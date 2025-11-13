@@ -1,0 +1,496 @@
+.
+
+**Kind**: global class  
+**Extends**: `Exchange`
+
+- [fetchMarkets](https://docs.ccxt.com/#/exchanges/krakenfutures?id=fetchmarkets)
+- [fetchOrderBook](https://docs.ccxt.com/#/exchanges/krakenfutures?id=fetchorderbook)
+- [fetchTickers](https://docs.ccxt.com/#/exchanges/krakenfutures?id=fetchtickers)
+- [fetchOHLCV](https://docs.ccxt.com/#/exchanges/krakenfutures?id=fetchohlcv)
+- [fetchTrades](https://docs.ccxt.com/#/exchanges/krakenfutures?id=fetchtrades)
+- [createOrder](https://docs.ccxt.com/#/exchanges/krakenfutures?id=createorder)
+- [createOrders](https://docs.ccxt.com/#/exchanges/krakenfutures?id=createorders)
+- [editOrder](https://docs.ccxt.com/#/exchanges/krakenfutures?id=editorder)
+- [cancelOrder](https://docs.ccxt.com/#/exchanges/krakenfutures?id=cancelorder)
+- [cancelOrders](https://docs.ccxt.com/#/exchanges/krakenfutures?id=cancelorders)
+- [cancelAllOrders](https://docs.ccxt.com/#/exchanges/krakenfutures?id=cancelallorders)
+- [cancelAllOrdersAfter](https://docs.ccxt.com/#/exchanges/krakenfutures?id=cancelallordersafter)
+- [fetchOpenOrders](https://docs.ccxt.com/#/exchanges/krakenfutures?id=fetchopenorders)
+- [fetchClosedOrders](https://docs.ccxt.com/#/exchanges/krakenfutures?id=fetchclosedorders)
+- [fetchCanceledOrders](https://docs.ccxt.com/#/exchanges/krakenfutures?id=fetchcanceledorders)
+- [fetchMyTrades](https://docs.ccxt.com/#/exchanges/krakenfutures?id=fetchmytrades)
+- [fetchBalance](https://docs.ccxt.com/#/exchanges/krakenfutures?id=fetchbalance)
+- [fetchFundingRates](https://docs.ccxt.com/#/exchanges/krakenfutures?id=fetchfundingrates)
+- [fetchFundingRateHistory](https://docs.ccxt.com/#/exchanges/krakenfutures?id=fetchfundingratehistory)
+- [fetchPositions](https://docs.ccxt.com/#/exchanges/krakenfutures?id=fetchpositions)
+- [fetchLeverageTiers](https://docs.ccxt.com/#/exchanges/krakenfutures?id=fetchleveragetiers)
+- [transferOut](https://docs.ccxt.com/#/exchanges/krakenfutures?id=transferout)
+- [transfer](https://docs.ccxt.com/#/exchanges/krakenfutures?id=transfer)
+- [setLeverage](https://docs.ccxt.com/#/exchanges/krakenfutures?id=setleverage)
+- [fetchLeverages](https://docs.ccxt.com/#/exchanges/krakenfutures?id=fetchleverages)
+- [fetchLeverage](https://docs.ccxt.com/#/exchanges/krakenfutures?id=fetchleverage)
+
+Fetches the available trading markets from the exchange, Multi-collateral markets are returned as linear markets, but can be settled in multiple currencies
+
+**Kind**: instance method of [`krakenfutures`](https://docs.ccxt.com/#/exchanges/krakenfutures?id=krakenfutures)  
+**Returns**: An array of market structures
+
+**See**: [https://docs.kraken.com/api/docs/futures-api/trading/get-instruments](https://docs.kraken.com/api/docs/futures-api/trading/get-instruments)
+
+| Param | Type | Required | Description |
+| --- | --- | --- | --- |
+| params | `object` | No | exchange specific params |
+
+```javascript
+krakenfutures.fetchMarkets ([params])
+```
+
+Fetches a list of open orders in a market
+
+**Kind**: instance method of [`krakenfutures`](https://docs.ccxt.com/#/exchanges/krakenfutures?id=krakenfutures)  
+**Returns**: An [order book structure](https://docs.ccxt.com/#/?id=order-book-structure)
+
+**See**: [https://docs.kraken.com/api/docs/futures-api/trading/get-orderbook](https://docs.kraken.com/api/docs/futures-api/trading/get-orderbook)
+
+| Param | Type | Required | Description |
+| --- | --- | --- | --- |
+| symbol | `string` | Yes | Unified market symbol |
+| limit | `int` | No | Not used by krakenfutures |
+| params | `object` | No | exchange specific params |
+
+```javascript
+krakenfutures.fetchOrderBook (symbol[, limit, params])
+```
+
+fetches price tickers for multiple markets, statistical information calculated over the past 24 hours for each market
+
+**Kind**: instance method of [`krakenfutures`](https://docs.ccxt.com/#/exchanges/krakenfutures?id=krakenfutures)  
+**Returns**: `object` - an array of [ticker structures](https://docs.ccxt.com/#/?id=ticker-structure)
+
+**See**: [https://docs.kraken.com/api/docs/futures-api/trading/get-tickers](https://docs.kraken.com/api/docs/futures-api/trading/get-tickers)
+
+| Param | Type | Required | Description |
+| --- | --- | --- | --- |
+| symbols | `Array<string>` | Yes | unified symbols of the markets to fetch the ticker for, all market tickers are returned if not assigned |
+| params | `object` | No | extra parameters specific to the exchange API endpoint |
+
+```javascript
+krakenfutures.fetchTickers (symbols[, params])
+```
+
+fetches historical candlestick data containing the open, high, low, and close price, and the volume of a market
+
+**Kind**: instance method of [`krakenfutures`](https://docs.ccxt.com/#/exchanges/krakenfutures?id=krakenfutures)  
+**Returns**: `Array<Array<int>>` - A list of candles ordered as timestamp, open, high, low, close, volume
+
+**See**: [https://docs.kraken.com/api/docs/futures-api/charts/candles](https://docs.kraken.com/api/docs/futures-api/charts/candles)
+
+| Param | Type | Required | Description |
+| --- | --- | --- | --- |
+| symbol | `string` | Yes | unified symbol of the market to fetch OHLCV data for |
+| timeframe | `string` | Yes | the length of time each candle represents |
+| since | `int` | No | timestamp in ms of the earliest candle to fetch |
+| limit | `int` | No | the maximum amount of candles to fetch |
+| params | `object` | No | extra parameters specific to the exchange API endpoint |
+| params.paginate | `boolean` | No | default false, when true will automatically paginate by calling this endpoint multiple times. See in the docs all the [availble parameters](https://github.com/ccxt/ccxt/wiki/Manual#pagination-params) |
+
+```javascript
+krakenfutures.fetchOHLCV (symbol, timeframe[, since, limit, params])
+```
+
+Fetch a history of filled trades that this account has made
+
+**Kind**: instance method of [`krakenfutures`](https://docs.ccxt.com/#/exchanges/krakenfutures?id=krakenfutures)  
+**Returns**: An array of [trade structures](https://docs.ccxt.com/#/?id=trade-structure)
+
+**See**
+
+- [https://docs.kraken.com/api/docs/futures-api/trading/get-history](https://docs.kraken.com/api/docs/futures-api/trading/get-history)
+- [https://docs.kraken.com/api/docs/futures-api/history/get-public-execution-events](https://docs.kraken.com/api/docs/futures-api/history/get-public-execution-events)
+
+| Param | Type | Required | Description |
+| --- | --- | --- | --- |
+| symbol | `string` | Yes | Unified CCXT market symbol |
+| since | `int` | No | Timestamp in ms of earliest trade. Not used by krakenfutures except in combination with params.until |
+| limit | `int` | No | Total number of trades, cannot exceed 100 |
+| params | `object` | No | Exchange specific params |
+| params.until | `int` | No | Timestamp in ms of latest trade |
+| params.paginate | `boolean` | No | default false, when true will automatically paginate by calling this endpoint multiple times. See in the docs all the [availble parameters](https://github.com/ccxt/ccxt/wiki/Manual#pagination-params) |
+| params.method | `string` | No | The method to use to fetch trades. Can be 'historyGetMarketSymbolExecutions' or 'publicGetHistory' default is 'historyGetMarketSymbolExecutions' |
+
+```javascript
+krakenfutures.fetchTrades (symbol[, since, limit, params])
+```
+
+Create an order on the exchange
+
+**Kind**: instance method of [`krakenfutures`](https://docs.ccxt.com/#/exchanges/krakenfutures?id=krakenfutures)  
+**Returns**: `object` - an [order structure](https://docs.ccxt.com/#/?id=order-structure)
+
+**See**: [https://docs.kraken.com/api/docs/futures-api/trading/send-order](https://docs.kraken.com/api/docs/futures-api/trading/send-order)
+
+| Param | Type | Required | Description |
+| --- | --- | --- | --- |
+| symbol | `string` | Yes | unified market symbol |
+| type | `string` | Yes | 'limit' or 'market' |
+| side | `string` | Yes | 'buy' or 'sell' |
+| amount | `float` | Yes | number of contracts |
+| price | `float` | No | limit order price |
+| params | `object` | No | extra parameters specific to the exchange API endpoint |
+| params.reduceOnly | `bool` | No | set as true if you wish the order to only reduce an existing position, any order which increases an existing position will be rejected, default is false |
+| params.postOnly | `bool` | No | set as true if you wish to make a postOnly order, default is false |
+| params.clientOrderId | `string` | No | UUID The order identity that is specified from the user, It must be globally unique |
+| params.triggerPrice | `float` | No | the price that a stop order is triggered at |
+| params.stopLossPrice | `float` | No | the price that a stop loss order is triggered at |
+| params.takeProfitPrice | `float` | No | the price that a take profit order is triggered at |
+| params.triggerSignal | `string` | No | for triggerPrice, stopLossPrice and takeProfitPrice orders, the trigger price type, 'last', 'mark' or 'index', default is 'last' |
+
+```javascript
+krakenfutures.createOrder (symbol, type, side, amount[, price, params])
+```
+
+create a list of trade orders
+
+**Kind**: instance method of [`krakenfutures`](https://docs.ccxt.com/#/exchanges/krakenfutures?id=krakenfutures)  
+**Returns**: `object` - an [order structure](https://docs.ccxt.com/#/?id=order-structure)
+
+**See**: [https://docs.kraken.com/api/docs/futures-api/trading/send-batch-order](https://docs.kraken.com/api/docs/futures-api/trading/send-batch-order)
+
+| Param | Type | Required | Description |
+| --- | --- | --- | --- |
+| orders | `Array` | Yes | list of orders to create, each object should contain the parameters required by createOrder, namely symbol, type, side, amount, price and params |
+| params | `object` | No | extra parameters specific to the exchange API endpoint |
+
+```javascript
+krakenfutures.createOrders (orders[, params])
+```
+
+Edit an open order on the exchange
+
+**Kind**: instance method of [`krakenfutures`](https://docs.ccxt.com/#/exchanges/krakenfutures?id=krakenfutures)  
+**Returns**: An [order structure](https://docs.ccxt.com/#/?id=order-structure)
+
+**See**: [https://docs.kraken.com/api/docs/futures-api/trading/edit-order-spring](https://docs.kraken.com/api/docs/futures-api/trading/edit-order-spring)
+
+| Param | Type | Required | Description |
+| --- | --- | --- | --- |
+| id | `string` | Yes | order id |
+| symbol | `string` | Yes | Not used by Krakenfutures |
+| type | `string` | Yes | Not used by Krakenfutures |
+| side | `string` | Yes | Not used by Krakenfutures |
+| amount | `float` | Yes | Order size |
+| price | `float` | No | Price to fill order at |
+| params | `object` | No | Exchange specific params |
+
+```javascript
+krakenfutures.editOrder (id, symbol, type, side, amount[, price, params])
+```
+
+Cancel an open order on the exchange
+
+**Kind**: instance method of [`krakenfutures`](https://docs.ccxt.com/#/exchanges/krakenfutures?id=krakenfutures)  
+**Returns**: An [order structure](https://docs.ccxt.com/#/?id=order-structure)
+
+**See**: [https://docs.kraken.com/api/docs/futures-api/trading/cancel-order](https://docs.kraken.com/api/docs/futures-api/trading/cancel-order)
+
+| Param | Type | Required | Description |
+| --- | --- | --- | --- |
+| id | `string` | Yes | Order id |
+| symbol | `string` | Yes | Not used by Krakenfutures |
+| params | `object` | No | Exchange specific params |
+
+```javascript
+krakenfutures.cancelOrder (id, symbol[, params])
+```
+
+cancel multiple orders
+
+**Kind**: instance method of [`krakenfutures`](https://docs.ccxt.com/#/exchanges/krakenfutures?id=krakenfutures)  
+**Returns**: `object` - an list of [order structures](https://docs.ccxt.com/#/?id=order-structure)
+
+**See**: [https://docs.kraken.com/api/docs/futures-api/trading/send-batch-order](https://docs.kraken.com/api/docs/futures-api/trading/send-batch-order)
+
+| Param | Type | Required | Description |
+| --- | --- | --- | --- |
+| ids | `Array<string>` | Yes | order ids |
+| symbol | `string` | No | unified market symbol |
+| params | `object` | No | extra parameters specific to the exchange API endpoint EXCHANGE SPECIFIC PARAMETERS |
+| params.clientOrderIds | `Array<string>` | No | max length 10 e.g. \["my\_id\_1","my\_id\_2"\] |
+
+```javascript
+krakenfutures.cancelOrders (ids[, symbol, params])
+```
+
+Cancels all orders on the exchange, including trigger orders
+
+**Kind**: instance method of [`krakenfutures`](https://docs.ccxt.com/#/exchanges/krakenfutures?id=krakenfutures)  
+**Returns**: Response from exchange api
+
+**See**: [https://docs.kraken.com/api/docs/futures-api/trading/cancel-all-orders](https://docs.kraken.com/api/docs/futures-api/trading/cancel-all-orders)
+
+| Param | Type | Required | Description |
+| --- | --- | --- | --- |
+| symbol | `str` | Yes | Unified market symbol |
+| params | `dict` | No | Exchange specific params |
+
+```javascript
+krakenfutures.cancelAllOrders (symbol[, params])
+```
+
+dead man's switch, cancel all orders after the given timeout
+
+**Kind**: instance method of [`krakenfutures`](https://docs.ccxt.com/#/exchanges/krakenfutures?id=krakenfutures)  
+**Returns**: `object` - the api result
+
+**See**: [https://docs.kraken.com/api/docs/futures-api/trading/cancel-all-orders-after](https://docs.kraken.com/api/docs/futures-api/trading/cancel-all-orders-after)
+
+| Param | Type | Required | Description |
+| --- | --- | --- | --- |
+| timeout | `number` | Yes | time in milliseconds, 0 represents cancel the timer |
+| params | `object` | No | extra parameters specific to the exchange API endpoint |
+
+```javascript
+krakenfutures.cancelAllOrdersAfter (timeout[, params])
+```
+
+Gets all open orders, including trigger orders, for an account from the exchange api
+
+**Kind**: instance method of [`krakenfutures`](https://docs.ccxt.com/#/exchanges/krakenfutures?id=krakenfutures)  
+**Returns**: An array of [order structures](https://docs.ccxt.com/#/?id=order-structure)
+
+**See**: [https://docs.kraken.com/api/docs/futures-api/trading/get-open-orders](https://docs.kraken.com/api/docs/futures-api/trading/get-open-orders)
+
+| Param | Type | Required | Description |
+| --- | --- | --- | --- |
+| symbol | `string` | Yes | Unified market symbol |
+| since | `int` | No | Timestamp (ms) of earliest order. (Not used by kraken api but filtered internally by CCXT) |
+| limit | `int` | No | How many orders to return. (Not used by kraken api but filtered internally by CCXT) |
+| params | `object` | No | Exchange specific parameters |
+
+```javascript
+krakenfutures.fetchOpenOrders (symbol[, since, limit, params])
+```
+
+Gets all closed orders, including trigger orders, for an account from the exchange api
+
+**Kind**: instance method of [`krakenfutures`](https://docs.ccxt.com/#/exchanges/krakenfutures?id=krakenfutures)  
+**Returns**: An array of [order structures](https://docs.ccxt.com/#/?id=order-structure)
+
+**See**: [https://docs.futures.kraken.com/#http-api-history-account-history-get-order-events](https://docs.futures.kraken.com/#http-api-history-account-history-get-order-events)
+
+| Param | Type | Required | Description |
+| --- | --- | --- | --- |
+| symbol | `string` | Yes | Unified market symbol |
+| since | `int` | No | Timestamp (ms) of earliest order. |
+| limit | `int` | No | How many orders to return. |
+| params | `object` | No | Exchange specific parameters |
+
+```javascript
+krakenfutures.fetchClosedOrders (symbol[, since, limit, params])
+```
+
+Gets all canceled orders, including trigger orders, for an account from the exchange api
+
+**Kind**: instance method of [`krakenfutures`](https://docs.ccxt.com/#/exchanges/krakenfutures?id=krakenfutures)  
+**Returns**: An array of [order structures](https://docs.ccxt.com/#/?id=order-structure)
+
+**See**: [https://docs.kraken.com/api/docs/futures-api/history/get-order-events](https://docs.kraken.com/api/docs/futures-api/history/get-order-events)
+
+| Param | Type | Required | Description |
+| --- | --- | --- | --- |
+| symbol | `string` | Yes | Unified market symbol |
+| since | `int` | No | Timestamp (ms) of earliest order. |
+| limit | `int` | No | How many orders to return. |
+| params | `object` | No | Exchange specific parameters |
+
+```javascript
+krakenfutures.fetchCanceledOrders (symbol[, since, limit, params])
+```
+
+fetch all trades made by the user
+
+**Kind**: instance method of [`krakenfutures`](https://docs.ccxt.com/#/exchanges/krakenfutures?id=krakenfutures)  
+**Returns**: `Array<Trade>` - a list of [trade structures](https://docs.ccxt.com/#/?id=trade-structure)
+
+**See**: [https://docs.kraken.com/api/docs/futures-api/trading/get-fills](https://docs.kraken.com/api/docs/futures-api/trading/get-fills)
+
+| Param | Type | Required | Description |
+| --- | --- | --- | --- |
+| symbol | `string` | Yes | unified market symbol |
+| since | `int` | No | *not used by the api* the earliest time in ms to fetch trades for |
+| limit | `int` | No | the maximum number of trades structures to retrieve |
+| params | `object` | No | extra parameters specific to the exchange API endpoint |
+| params.until | `int` | No | the latest time in ms to fetch entries for |
+
+```javascript
+krakenfutures.fetchMyTrades (symbol[, since, limit, params])
+```
+
+Fetch the balance for a sub-account, all sub-account balances are inside 'info' in the response
+
+**Kind**: instance method of [`krakenfutures`](https://docs.ccxt.com/#/exchanges/krakenfutures?id=krakenfutures)  
+**Returns**: A [balance structure](https://docs.ccxt.com/#/?id=balance-structure)
+
+**See**: [https://docs.kraken.com/api/docs/futures-api/trading/get-accounts](https://docs.kraken.com/api/docs/futures-api/trading/get-accounts)
+
+| Param | Type | Required | Description |
+| --- | --- | --- | --- |
+| params | `object` | No | Exchange specific parameters |
+| params.type | `string` | No | The sub-account type to query the balance of, possible values include 'flex', 'cash'/'main'/'funding', or a market symbol \* defaults to 'flex' \* |
+| params.symbol | `string` | No | A unified market symbol, when assigned the balance for a trading market that matches the symbol is returned |
+
+```javascript
+krakenfutures.fetchBalance ([params])
+```
+
+fetch the current funding rates for multiple markets
+
+**Kind**: instance method of [`krakenfutures`](https://docs.ccxt.com/#/exchanges/krakenfutures?id=krakenfutures)  
+**Returns**: `Array<Order>` - an array of [funding rate structures](https://docs.ccxt.com/#/?id=funding-rate-structure)
+
+**See**: [https://docs.kraken.com/api/docs/futures-api/trading/get-tickers](https://docs.kraken.com/api/docs/futures-api/trading/get-tickers)
+
+| Param | Type | Required | Description |
+| --- | --- | --- | --- |
+| symbols | `Array<string>` | Yes | unified market symbols |
+| params | `object` | No | extra parameters specific to the exchange API endpoint |
+
+```javascript
+krakenfutures.fetchFundingRates (symbols[, params])
+```
+
+fetches historical funding rate prices
+
+**Kind**: instance method of [`krakenfutures`](https://docs.ccxt.com/#/exchanges/krakenfutures?id=krakenfutures)  
+**Returns**: `Array<object>` - a list of [funding rate structures](https://docs.ccxt.com/#/?id=funding-rate-history-structure)
+
+**See**: [https://docs.kraken.com/api/docs/futures-api/trading/historical-funding-rates](https://docs.kraken.com/api/docs/futures-api/trading/historical-funding-rates)
+
+| Param | Type | Required | Description |
+| --- | --- | --- | --- |
+| symbol | `string` | Yes | unified symbol of the market to fetch the funding rate history for |
+| since | `int` | No | timestamp in ms of the earliest funding rate to fetch |
+| limit | `int` | No | the maximum amount of [funding rate structures](https://docs.ccxt.com/#/?id=funding-rate-history-structure) to fetch |
+| params | `object` | No | extra parameters specific to the api endpoint |
+
+```javascript
+krakenfutures.fetchFundingRateHistory (symbol[, since, limit, params])
+```
+
+Fetches current contract trading positions
+
+**Kind**: instance method of [`krakenfutures`](https://docs.ccxt.com/#/exchanges/krakenfutures?id=krakenfutures)  
+**Returns**: Parsed exchange response for positions
+
+**See**: [https://docs.kraken.com/api/docs/futures-api/trading/get-open-positions](https://docs.kraken.com/api/docs/futures-api/trading/get-open-positions)
+
+| Param | Type | Required | Description |
+| --- | --- | --- | --- |
+| symbols | `Array<string>` | Yes | List of unified symbols |
+| params | `object` | No | Not used by krakenfutures |
+
+```javascript
+krakenfutures.fetchPositions (symbols[, params])
+```
+
+retrieve information on the maximum leverage, and maintenance margin for trades of varying trade sizes
+
+**Kind**: instance method of [`krakenfutures`](https://docs.ccxt.com/#/exchanges/krakenfutures?id=krakenfutures)  
+**Returns**: `object` - a dictionary of [leverage tiers structures](https://docs.ccxt.com/#/?id=leverage-tiers-structure), indexed by market symbols
+
+**See**: [https://docs.kraken.com/api/docs/futures-api/trading/get-instruments](https://docs.kraken.com/api/docs/futures-api/trading/get-instruments)
+
+| Param | Type | Required | Description |
+| --- | --- | --- | --- |
+| symbols | `Array<string>`, `undefined` | Yes | list of unified market symbols |
+| params | `object` | No | extra parameters specific to the exchange API endpoint |
+
+```javascript
+krakenfutures.fetchLeverageTiers (symbols[, params])
+```
+
+transfer from futures wallet to spot wallet
+
+**Kind**: instance method of [`krakenfutures`](https://docs.ccxt.com/#/exchanges/krakenfutures?id=krakenfutures)  
+**Returns**: a [transfer structure](https://docs.ccxt.com/#/?id=transfer-structure)
+
+| Param | Type | Required | Description |
+| --- | --- | --- | --- |
+| code | `str` | Yes | Unified currency code |
+| amount | `float` | Yes | Size of the transfer |
+| params | `dict` | No | Exchange specific parameters |
+
+```javascript
+krakenfutures.transferOut (code, amount[, params])
+```
+
+transfers currencies between sub-accounts
+
+**Kind**: instance method of [`krakenfutures`](https://docs.ccxt.com/#/exchanges/krakenfutures?id=krakenfutures)  
+**Returns**: a [transfer structure](https://docs.ccxt.com/#/?id=transfer-structure)
+
+**See**
+
+- [https://docs.kraken.com/api/docs/futures-api/trading/transfer](https://docs.kraken.com/api/docs/futures-api/trading/transfer)
+- [https://docs.kraken.com/api/docs/futures-api/trading/sub-account-transfer](https://docs.kraken.com/api/docs/futures-api/trading/sub-account-transfer)
+
+| Param | Type | Required | Description |
+| --- | --- | --- | --- |
+| code | `string` | Yes | Unified currency code |
+| amount | `float` | Yes | Size of the transfer |
+| fromAccount | `string` | Yes | 'main'/'funding'/'future', 'flex', or a unified market symbol |
+| toAccount | `string` | Yes | 'main'/'funding', 'flex', 'spot' or a unified market symbol |
+| params | `object` | No | Exchange specific parameters |
+
+```javascript
+krakenfutures.transfer (code, amount, fromAccount, toAccount[, params])
+```
+
+set the level of leverage for a market
+
+**Kind**: instance method of [`krakenfutures`](https://docs.ccxt.com/#/exchanges/krakenfutures?id=krakenfutures)  
+**Returns**: `object` - response from the exchange
+
+**See**: [https://docs.kraken.com/api/docs/futures-api/trading/set-leverage-setting](https://docs.kraken.com/api/docs/futures-api/trading/set-leverage-setting)
+
+| Param | Type | Required | Description |
+| --- | --- | --- | --- |
+| leverage | `float` | Yes | the rate of leverage |
+| symbol | `string` | Yes | unified market symbol |
+| params | `object` | No | extra parameters specific to the exchange API endpoint |
+
+```javascript
+krakenfutures.setLeverage (leverage, symbol[, params])
+```
+
+fetch the set leverage for all contract and margin markets
+
+**Kind**: instance method of [`krakenfutures`](https://docs.ccxt.com/#/exchanges/krakenfutures?id=krakenfutures)  
+**Returns**: `object` - a list of [leverage structures](https://docs.ccxt.com/#/?id=leverage-structure)
+
+**See**: [https://docs.kraken.com/api/docs/futures-api/trading/get-leverage-setting](https://docs.kraken.com/api/docs/futures-api/trading/get-leverage-setting)
+
+| Param | Type | Required | Description |
+| --- | --- | --- | --- |
+| symbols | `Array<string>` | No | a list of unified market symbols |
+| params | `object` | No | extra parameters specific to the exchange API endpoint |
+
+```javascript
+krakenfutures.fetchLeverages ([symbols, params])
+```
+
+fetch the set leverage for a market
+
+**Kind**: instance method of [`krakenfutures`](https://docs.ccxt.com/#/exchanges/krakenfutures?id=krakenfutures)  
+**Returns**: `object` - a [leverage structure](https://docs.ccxt.com/#/?id=leverage-structure)
+
+**See**: [https://docs.kraken.com/api/docs/futures-api/trading/get-leverage-setting](https://docs.kraken.com/api/docs/futures-api/trading/get-leverage-setting)
+
+| Param | Type | Required | Description |
+| --- | --- | --- | --- |
+| symbol | `string` | Yes | unified market symbol |
+| params | `object` | No | extra parameters specific to the exchange API endpoint |
+
+```javascript
+krakenfutures.fetchLeverage (symbol[, params])
+```

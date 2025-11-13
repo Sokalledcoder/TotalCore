@@ -1,0 +1,31 @@
+{
+  "env_config_path": "configs/env/btcusd_1m_sepnov2025.json",
+  "algorithm": "ppo",
+  "total_timesteps": 4096,
+  "seed": 123,
+  "eval_episodes": 1,
+  "save_path": "models/ppo_cpu_baseline",
+  "log_dir": "",
+  "progress_bar": false,
+  "normalize_advantage": true,
+  "clip_range_vf": 0.2,
+  "ent_coef": 0.0,
+  "vf_coef": 0.5,
+  "max_grad_norm": 0.5,
+  "vecnormalize": {
+    "enabled": true,
+    "norm_obs": true,
+    "norm_reward": false,
+    "clip_obs": 5.0,
+    "clip_reward": 5.0,
+    "gamma": 0.99
+  },
+  "algo_kwargs": {
+    "learning_rate": 0.0003,
+    "n_steps": 2048,
+    "batch_size": 64,
+    "gamma": 0.99,
+    "gae_lambda": 0.95,
+    "clip_range": 0.2
+  }
+}

@@ -1,0 +1,171 @@
+You’re right: skip the CSVs. You can pull **all** spot history from Kraken’s public API with CCXT and build your own candles. The trick is to paginate trades and aggregate locally.
+
+Here’s a battle-tested recipe in **Python (ccxt)** that:
+
+* pages through **all trades** for a symbol (years back),
+* de-dupes,
+* turns trades into **OHLCV** at any interval using CCXT’s built-in aggregator.
+
+> Why this works: Kraken’s `/public/Trades` returns ~**1000 trades/page** and supports a `since` cursor so you can walk back forever. Their `/public/OHLC` caps at **720 bars**, so you must rebuild candles yourself. CCXT exposes a `build_ohlcvc()` helper specifically for this flow. ([Kraken Docs][1])
+
+---
+
+### Python: full backfill via trades → candles
+
+```python
+# pip install ccxt
+import ccxt, time, math
+from datetime import datetime, timezone
+
+exchange = ccxt.kraken({
+    'enableRateLimit': True,   # honors exchange.rateLimit
+})
+
+symbol = 'BTC/USD'            # CCXT maps this to Kraken’s XBT/USD under the hood
+timeframe = '1m'              # any CCXT timeframe string: '1m','5m','1h','1d',...
+start_iso = '2014-01-01T00:00:00Z'
+end_iso   = None              # or '2025-11-12T00:00:00Z' to cap it
+
+start_ms = exchange.parse8601(start_iso)
+end_ms   = exchange.milliseconds() if end_iso is None else exchange.parse8601(end_iso)
+
+# Kraken can ignore `limit` on public Trades; we'll still ask for 1000 to be explicit
+page_limit = 1000
+
+# De-dupe across pages (some exchanges return overlapping edges)
+seen_trade_ids = set()
+
+# Accumulator: {candle_open_ms: [O,H,L,C,V,count]}
+candles = {}
+
+def bucket(ts_ms, tf):
+    seconds = exchange.parse_timeframe(tf)
+    return (ts_ms // (seconds * 1000)) * (seconds * 1000)
+
+since_ms = start_ms
+
+while since_ms < end_ms:
+    # Use unified fetch_trades with ms 'since'. CCXT handles Kraken’s weirdness internally.
+    trades = exchange.fetch_trades(symbol, since=since_ms, limit=page_limit)
+
+    if not trades:
+        # backoff a bit in case we hit a quiet stretch or rate-limit
+        time.sleep(exchange.rateLimit / 1000.0)
+        # advance a little to avoid getting stuck
+        since_ms += 60_000
+        continue
+
+    for t in trades:
+        tid = t.get('id')
+        if tid and tid in seen_trade_ids:
+            continue
+        if tid:
+            seen_trade_ids.add(tid)
+
+        ts = t['timestamp']
+        if ts is None:
+            continue
+        if ts < start_ms or ts > end_ms:
+            continue
+
+        price = float(t['price'])
+        amount = float(t['amount'])
+        k = bucket(ts, timeframe)
+
+        if k not in candles:
+            candles[k] = [price, price, price, price, 0.0, 0]  # O,H,L,C,V,count
+
+        O,H,L,C,V,CN = candles[k]
+        H = max(H, price)
+        L = min(L, price)
+        C = price
+        V += amount
+        CN += 1
+        candles[k] = [O,H,L,C,V,CN]
+
+    # advance cursor: one ms past the last trade we processed
+    last_ts = trades[-1]['timestamp']
+    since_ms = max(since_ms + 1, last_ts + 1)
+
+    # polite pacing (extra helpful on Kraken where Trades is IP+pair rate limited)
+    time.sleep(exchange.rateLimit / 1000.0)
+
+# produce sorted OHLCV list
+ohlcv = [[k, *candles[k][:5]] for k in sorted(candles.keys())]
+print(f"built {len(ohlcv)} candles @ {timeframe}")
+```
+
+**Notes that matter:**
+
+* Kraken’s **OHLC endpoint is hard-capped at 720 bars**; building candles from trades avoids that cap. ([Kraken Docs][2])
+* Kraken’s **Trades endpoint** returns around **1000 trades per page** and supports a **`since` cursor** so you can keep paginating. (Under the hood Kraken uses a nanosecond “last” token; the official docs/support explain stepping with `since` → `last`.) CCXT’s `since` is **milliseconds**, and the Kraken adapter handles the conversion. ([Kraken Docs][1])
+* Rate limits: their public endpoints are throttled **by IP and by pair** for Trades/OHLC. Keeping `enableRateLimit=True` and a tiny sleep keeps you safe. ([Kraken Support][3])
+
+---
+
+### Want the raw Kraken cursor loop instead?
+
+If you’d rather drive Kraken’s **native** pagination (useful if you ever run into CCXT edge cases), you can call the **raw** REST method through CCXT to read the `last` token directly:
+
+```python
+import ccxt, time, json
+
+kraken = ccxt.kraken({'enableRateLimit': True})
+kraken.load_markets()
+m = kraken.market('BTC/USD')
+pair = (m['base'] + m['quote']).replace('/', '')  # 'BTC/USD' -> 'BTCUSD'; Kraken maps BTC→XBT internally
+
+since_token = '0'   # '0' = from market inception (Kraken support docs)
+all_trades = []
+
+while True:
+    resp = kraken.public_get_trades({'pair': pair, 'since': since_token})
+    result = resp['result']
+    # the key for trades can be 'XBTUSD' / 'XXBTZUSD' depending on API flavor; pick the first non-'last'
+    keys = [k for k in result.keys() if k != 'last']
+    rows = result[keys[0]]
+    if not rows:
+        break
+
+    for p, v, t, s, otype, misc in rows:
+        ts_ms = int(float(t) * 1000)
+        all_trades.append({'timestamp': ts_ms, 'price': float(p), 'amount': float(v), 'side': 'buy' if s == 'b' else 'sell'})
+
+    since_token = result['last']  # Kraken cursor (nanoseconds)
+    time.sleep(kraken.rateLimit / 1000.0)
+
+print(len(all_trades), "raw trades")
+```
+
+Kraken’s support article shows exactly this `since → last` flow and confirms `since=0` means “from the beginning.” ([Kraken Support][4])
+
+---
+
+### Turning trades into candles (alt: use CCXT’s helper)
+
+If you prefer CCXT to do the aggregation math, swap in:
+
+```python
+# trades_page is a list of unified trades (timestamp, price, amount, ...)
+page_ohlcvc = exchange.build_ohlcvc(trades_page, timeframe)  # [[ts, O,H,L,C,V,count], ...]
+```
+
+and then merge each page’s result into a dict keyed by `ts`. The CCXT manual documents `build_ohlcvc()` as the supported way to transform first-order data (trades) into second-order data (candles). ([GitHub][5])
+
+---
+
+### Gotchas (so it doesn’t gaslight you)
+
+* **Symbols:** Kraken uses **XBT** for Bitcoin. CCXT lets you stick to `BTC/USD`, but raw Kraken calls need `XBTUSD` (or similar) under the hood. ([Kraken Docs][1])
+* **Window size:** `/public/OHLC` caps at 720 entries regardless of `since`, so don’t use it for backfills. ([Kraken Docs][2])
+* **Pagination safety:** If you ever see empty pages, bump the cursor by a minute to avoid stall; low-liquidity pairs can have gaps.
+* **Rate limits:** Trades/OHLC are **IP+pair** limited. Keep requests ~1/sec. ([Kraken Support][3])
+
+If you tell me `symbol(s)` and `timeframe(s)`, I’ll tailor the loop (parallelization, resume checkpoints, optional SQLite parquet cache) so you can hammer out a full backfill without babysitting it.
+
+[1]: https://docs.kraken.com/api/docs/rest-api/get-recent-trades/ "Get Recent Trades | Kraken API Center"
+[2]: https://docs.kraken.com/api/docs/rest-api/get-ohlc-data?utm_source=chatgpt.com "Get OHLC Data | Kraken API Center"
+[3]: https://support.kraken.com/nl/articles/206548367-what-are-the-api-rate-limits-?utm_source=chatgpt.com "What are the API rate limits?"
+[4]: https://support.kraken.com/articles/4404204388756-possible-status-values-for-deposit-withdrawal-transactions?utm_source=chatgpt.com "Advanced API FAQ"
+[5]: https://github.com/ccxt/ccxt/wiki/Manual/075e7b319ba37f1ac1f3a8a329af70d6a2c436d9 "Manual · ccxt/ccxt Wiki · GitHub"
+

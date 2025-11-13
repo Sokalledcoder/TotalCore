@@ -1,0 +1,516 @@
+Gotcha. Let’s turn this into a **design brief for Codex** that assumes:
+
+* Codex = GPT-5-Codex / GPT-5 agent with **web search enabled** via OpenAI tools.
+* RunPod = GPU compute + network volumes + (optional) serverless.
+
+I’ll:
+
+1. Reframe the whole architecture with your new RL focus.
+2. Add more detail.
+3. Explicitly call out **“Things Codex should research/confirm”** in each area using web search.
+
+You can basically paste this into Codex as: “Here’s the spec. Use web search where indicated and implement.”
+
+---
+
+# Design Brief for Codex
+
+**Project:** RL Trading Lab on RunPod GPUs
+**Owner:** You (the human theorist / indicator wizard)
+**Executor:** Codex (GPT-5-Codex with web search enabled)
+
+---
+
+## 1. Scope & goals (updated with RL focus)
+
+### 1.1 What this system is for
+
+You want a system where:
+
+* You provide:
+
+  * Historical 1-minute price data (multi-year).
+  * A set of indicators + theory.
+  * A **first draft of a Python RL environment** (or at least a spec).
+* The system:
+
+  * Spins up a **GPU-backed sandbox** on RunPod.
+  * Loads that data + indicators.
+  * Exposes a **trading “toolbox”** to an RL agent:
+
+    * open/close long/short,
+    * set/change stop-loss,
+    * set take-profit,
+    * maybe change position size or leverage, etc.
+  * Lets the agent “play the market game” across historical data until it learns a profitable policy (ideally).
+* Pure indicator backtesting (fixed strategy, no RL) can stay **local on CPU** and is **not the primary GPU use case**.
+
+### 1.2 Core components
+
+For Codex’s brain:
+
+* **Control plane (your side):**
+
+  * Web UI to view strategies, RL runs, status, metrics.
+  * Backend with DB to track experiments, datasets, configs.
+* **Compute plane (RunPod):**
+
+  * GPU Pods for RL training.
+  * Network volumes for data & models.
+  * Optionally serverless endpoints for short jobs.
+
+---
+
+## 2. RL trading environment: design & what Codex should research
+
+This is the heart of the project. Codex will implement this environment inside the RunPod container.
+
+### 2.1 Environment interface
+
+Target: something **Gymnasium/OpenAI Gym-like**:
+
+* `reset()` → returns initial state.
+* `step(action)` → `(next_state, reward, done, info)`.
+* `action_space` & `observation_space` defined.
+* Handles time progression through historical 1m candles.
+
+Codex should aim to follow API conventions similar to **Gymnasium** or **FinRL envs**, so that standard RL libraries can plug in.
+
+#### Things Codex should research
+
+Using web search:
+
+* Examples of **Gym-style trading environments** in:
+
+  * FinRL docs & repo.
+  * Other open-source RL trading envs on GitHub (e.g., “gym trading environment”, “gym-forex”, etc.).
+* Best practices for **vectorized environments** (to run many episodes in parallel on GPU).
+
+### 2.2 State (observation) design
+
+Environment should provide at each timestep something like:
+
+* Recent OHLCV window (e.g., last N minutes).
+* Selected indicators:
+
+  * The ones you specify (RSI, EMA, ATR, your custom stuff).
+* Agent’s own situation:
+
+  * Current position (flat/long/short).
+  * Position size.
+  * Entry price.
+  * Unrealized PnL.
+  * Account equity, margin usage, etc.
+* Optional:
+
+  * Time of day / day of week (to learn intraday patterns).
+
+Codex needs to let you **configure** which indicators are included (through a JSON config), not hard-code them, because you want to test “Is this new indicator actually useful?”
+
+#### Things Codex should research
+
+* “state representation for RL trading” and how FinRL structures state vectors.
+* Techniques for **normalizing** financial time series and indicators to help RL training.
+
+### 2.3 Action space: the “toolbox” you give the agent
+
+You specifically want the agent to have **tools**, not raw continuous output like “predict next price.”
+
+Design a discrete or hybrid action space like:
+
+* **Position actions:**
+
+  * `NOOP` (hold).
+  * `OPEN_LONG`, `CLOSE_LONG`.
+  * `OPEN_SHORT`, `CLOSE_SHORT`. (If you allow shorting.)
+
+* **Risk controls as actions:**
+
+  * Set/adjust **stop loss** (e.g. at X% below entry, or N ATR).
+  * Set/adjust **take profit** (X% above entry, etc.).
+  * Optionally: tighten or widen SL/TP dynamically.
+
+* **Sizing:**
+
+  * Choose from discrete sizes: 0.25x, 0.5x, 1.0x base position.
+  * Or continuous action for size, but that’s trickier.
+
+Codex should implement this as either:
+
+* A **multi-discrete** action space (e.g., one dimension for position action, one for SL choice, one for TP choice), or
+* A single flattened discrete action like “OPEN_LONG_WITH_TP_2%_SL_1%”.
+
+#### Things Codex should research
+
+* “multi-discrete action space gymnasium” and examples of multi-component actions.
+* How FinRL or similar libraries encode trading actions (their papers list what actions agents can take).
+
+### 2.4 Reward design
+
+We want the agent to maximize **profitability**, but with sane risk.
+
+Potential components:
+
+* Base reward: **change in portfolio value** (PnL delta) per step.
+* Penalize:
+
+  * Excessive drawdowns.
+  * Huge position sizes (risk).
+  * Too many trades (transaction costs).
+* You can also shape reward toward:
+
+  * Risk-adjusted metrics (approximate Sharpe, Sortino).
+  * Staying within leverage/margin constraints.
+
+Codex should parametrize reward:
+
+* Reward config in JSON: weights for PnL vs drawdown penalty vs trade cost.
+* Ability to swap reward functions without rewriting environment.
+
+#### Things Codex should research
+
+* Reward functions used in **FinRL** and similar RL-for-trading papers.
+* Discussions of **reward shaping in financial RL** and pitfalls (e.g., learning to reduce variance by not trading at all).
+
+### 2.5 Episode structure
+
+Codex should design episodes like:
+
+* Episode = contiguous time window from your 1m dataset (e.g., 6 months, 1 year).
+* On `reset()`, pick:
+
+  * A fixed window (for training/validation splits), or
+  * A random start index (for data augmentation).
+
+And respect:
+
+* **No lookahead bias** — only feed past and current data, not future bars.
+* **Realistic market constraints**:
+
+  * Execution price = close/open of next bar (or some rule).
+  * Slippage / spread / fees modeled.
+
+#### Things Codex should research
+
+* “lookahead bias reinforcement learning trading”.
+* How FinRL avoids data leakage across training/test splits.
+
+---
+
+## 3. RL training stack inside RunPod
+
+This is where GPUs get used.
+
+### 3.1 RL libraries to consider
+
+Codex should not reinvent RL algorithms. It should wire the environment into existing libs:
+
+* **FinRL** for finance-specific DRL, already wraps multiple algorithms and environments.
+* **Stable-Baselines3** for classic on-policy/off-policy (PPO, A2C, SAC, TD3, etc.).
+* Optionally **RLlib** or **CleanRL** if needed for more custom scaling.
+
+Given your use case:
+
+* **PPO**, **SAC**, **DDPG/TD3** are all common in trading RL.
+
+#### Things Codex should research
+
+* Compare FinRL vs Stable-Baselines3 for **extensibility** and **GPU usage**.
+* GPU support and best practices for running these libs on Remote GPUs (e.g., PyTorch CUDA settings).
+
+### 3.2 Container image for RunPod Pods
+
+On RunPod, Codex should:
+
+1. Start from a CUDA/PyTorch base or a RunPod ML base image.
+2. Install:
+
+   * Python libs: pandas, numpy, pyarrow, your backtesting utilities.
+   * RL libs: FinRL, stable-baselines3, etc.
+   * RunPod Python SDK (`runpod` package).
+3. Copy in:
+
+   * Your RL environment code.
+   * Experiment runner (`run_experiment.py`).
+   * Config parsing utilities.
+
+Codex should then turn this into a **Docker image** and push to a registry, so RunPod can use it for pods & serverless workers. RunPod docs + “Hello World” serverless tutorial show this flow clearly.
+
+#### Things Codex should research
+
+* RunPod’s recommendations for **ML Docker images** (any “PyTorch template” images).
+* Best practices for **CUDA version matching** on RunPod (`allowedCudaVersions`).
+
+### 3.3 Experiment runner structure
+
+Inside the container, Codex should create a runner that:
+
+* Accepts a **JSON config** specifying:
+
+  * Dataset path + time window.
+  * Strategy/indicator set.
+  * RL algorithm + hyperparameters.
+  * Seed, number of steps, etc.
+* Initializes:
+
+  * The environment with that config.
+  * The RL agent.
+* Runs training & evaluation:
+
+  * Training episodes on the chosen time range.
+  * Evaluation on out-of-sample data (different window).
+* Writes:
+
+  * Metrics JSON.
+  * Optional equity curve & trade logs.
+  * Optional model weights.
+
+For serverless, this logic can sit inside an `rp_handler(event)` function; for pods, it’s a CLI script. RunPod’s handler docs and worker examples outline this pattern.
+
+#### Things Codex should research
+
+* Example **RunPod serverless workers** using `rp_handler.py` + `runpod` SDK.
+* Good patterns for **logging and artifact storage** inside serverless workers.
+
+---
+
+## 4. RunPod integration: pods, storage, maybe serverless
+
+### 4.1 Storage: network volumes
+
+You have big 1-minute datasets. Codex should:
+
+* Use **RunPod network volumes** to keep a **single canonical copy** of all historical data.
+* Network volumes:
+
+  * Persist independently of pods.
+  * Can be attached to multiple pods/workers.
+  * Mount at `/workspace` by default.
+
+Process:
+
+1. You (human) + Codex script:
+
+   * Create a network volume in chosen region.
+   * Spin up a temporary pod with that volume attached.
+   * Upload data into `/workspace/data/` (via `runpodctl`, `scp`, or sync from cloud storage).
+2. All training and evaluation pods use this volume.
+
+**Note:** Using network volumes with serverless constrains endpoints to that data center, so Codex should be aware of **region constraints vs GPU availability**.
+
+#### Things Codex should research
+
+* Exact **RunPod steps to create & attach network volumes** to pods and serverless endpoints.
+* Performance characteristics and any “gotchas” vs local volume disk (latency complaints, optimization tips).
+
+### 4.2 GPU pods for RL runs
+
+Codex should:
+
+* Use the **RunPod API** (or Python SDK) to create pods with:
+
+  * Your custom Docker image.
+  * GPU type (e.g. A10, 4090, A100) depending on job size.
+  * Network volume attached.
+  * Either Secure Cloud or Community Cloud (cost vs reliability).
+
+Docs confirm the API provides full control over pods (create, manage, etc.).
+
+Then:
+
+* Upload config JSON for each experiment.
+* Run the experiment runner.
+* Download results / metrics.
+* Stop or terminate pod to avoid idle billing.
+
+#### Things Codex should research
+
+* Exact **pod creation payload**: what fields to send for GPU type, cloudType, networkVolume, env vars.
+* Whether to prefer **RunPod API** vs `runpodctl` for automation (likely API + Python SDK).
+
+### 4.3 Optional: serverless for short jobs
+
+For RL training, pods are main. But Codex can optionally use **RunPod Serverless** for:
+
+* Fast indicator sanity checks.
+* Small backtests or evaluation-only passes.
+
+Serverless:
+
+* Uses **handler functions** that receive JSON input and return JSON output.
+* Deploys via your Docker image imported as a **custom worker**.
+
+Codex could create:
+
+* `indicator_evaluator` endpoint:
+
+  * Input: dataset + indicator config + window.
+  * Output: quick metrics: hit rate, correlation, etc.
+
+#### Things Codex should research
+
+* Timeouts & limits for **RunPod serverless** to know what job sizes are safe.
+* Best practices in **endpoint configuration** (queue vs synchronous, worker concurrency, scaling).
+
+---
+
+## 5. Control plane: backend, DB, and web UI
+
+This is the part you interact with directly and where your “theory + code drafts” plug in.
+
+### 5.1 Data model (what Codex should build)
+
+Tables/entities:
+
+* `datasets` – metadata + path in network volume.
+* `indicators` – definitions + parameter schemas.
+* `strategies` – indicator combinations / logic definitions (mainly for classic backtests).
+* `rl_env_versions` – versions of your RL environment spec/code (so you know which version ran which experiment).
+* `experiments` – each RL run:
+
+  * Type (`rl_train`, `rl_eval`, `param_sweep`).
+  * Strategy / indicator set used.
+  * Dataset & time window.
+  * Environment version.
+  * Status, timings, linked RunPod pod or job ID.
+* `experiment_results` – metrics, references to stored artifacts.
+
+Codex should also allow you to store **raw theory/notes** or at least versioned config blobs as JSON fields you can inspect later.
+
+### 5.2 Backend services
+
+Codex should implement:
+
+* **API for you + UI:**
+
+  * Create/update RL environment configs.
+  * Upload new indicator definitions.
+  * Define new experiments and sweeps.
+* **RunPod orchestration:**
+
+  * Schedules experiments → pods.
+  * Tracks status.
+  * Ingests results.
+* **Budget/safety logic:**
+
+  * Max concurrent pods.
+  * Kill idle pods after X minutes of inactivity.
+
+#### Things Codex should research
+
+* References for **queue + worker patterns** (Celery, RQ, or built-in background workers in chosen framework).
+* Good patterns for **long-running job status tracking** (job tables, polling, WebSocket updates).
+
+### 5.3 Web front-end
+
+Features Codex should build:
+
+* **Dashboard:**
+
+  * Running / completed RL experiments.
+  * Summary metrics (best Sharpe runs, etc.)
+* **RL Experiments page:**
+
+  * Table of runs with filters.
+  * Detail view for a run:
+
+    * Config.
+    * Metrics.
+    * Equity curve plot.
+    * Link to logs.
+* **RL Environment config page:**
+
+  * Form to define:
+
+    * State features (which indicators, window length, etc.).
+    * Allowed actions (include/exclude TP/SL, size options).
+    * Reward function parameters.
+
+---
+
+## 6. Division of labor: you vs Codex vs RunPod
+
+### 6.1 You (the human)
+
+* Provide:
+
+  * The **theory**: what indicators matter, what reward makes sense, what constraints exist (fees, leverage, etc.).
+  * A **first draft** of the RL environment (even rough), including:
+
+    * Basic `step` logic,
+    * Action and observation ideas,
+    * Reward function idea.
+* Decide:
+
+  * Which experiments are worth running.
+  * How to interpret metrics beyond “Sharpe good / bad”.
+
+### 6.2 Codex (with web search)
+
+Codex’s job, using this report + web search:
+
+1. Decide on specific RL stack (FinRL vs pure Stable-Baselines3), after reviewing docs.
+2. Design and implement:
+
+   * A Gym-style RL trading environment with your toolbox actions.
+   * Configurable reward/state design.
+3. Build:
+
+   * Docker image for that environment + training code.
+   * RunPod pod templates & optionally serverless endpoints.
+4. Implement:
+
+   * API backend + DB schema + job scheduler.
+   * Web UI.
+
+### 6.3 RunPod
+
+* Provides the GPU horsepower, pods, serverless, and storage features described.
+
+---
+
+## 7. Explicit “research checklist” for Codex
+
+Let’s end with a direct checklist you can give Codex.
+
+**Before implementation, Codex should:**
+
+1. **RL for trading basics**
+
+   * Read FinRL docs & key paper (NeurIPS 2020, ICAIF 2021) to understand:
+
+     * How they design state/action/reward.
+     * How they structure full trading pipelines.
+
+2. **RunPod fundamentals**
+
+   * Study:
+
+     * Pods: creation, GPU selection, cloud types (Secure vs Community), lifecycle via API.
+     * Network volumes: creation, mounting, differences vs local volume disk.
+     * Serverless: handler functions, building a custom worker, endpoint configurations.
+
+3. **Tooling integration**
+
+   * Read RunPod Python SDK docs for interacting with endpoints, templates, and GPUs programmatically.
+   * Review OpenAI docs on tools & web search so it can fetch fresh docs as needed during implementation.
+
+4. **RL environment specifics**
+
+   * Look up:
+
+     * Multi-discrete action spaces in Gym/Gymnasium.
+     * Example open-source trading environments and how they implement SL/TP, transaction costs, and leverage.
+
+5. **System architecture patterns**
+
+   * Look at standard patterns for:
+
+     * Background job queues (Celery/RQ style).
+     * Async result polling from external services (like RunPod endpoints).
+     * Dashboarding metrics for ML experiments.
+
+Once Codex has digested those, this spec gives it a **very clear target**: build a GPU-backed RL trading lab where you supply theory + env drafts + indicators, and the system turns that into trainable agents and a bunch of experiment results you can inspect through a web UI.
+
+From there, the fun part is watching how your indicators actually behave when an agent is allowed to weaponize them.
+

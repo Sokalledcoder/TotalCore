@@ -1,0 +1,103 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Fetch History</title>
+  <link rel="stylesheet" href="/static/styles.css" />
+</head>
+<body>
+  <main>
+    <h1>Fetch Historical Data</h1>
+    <p class="subtitle">Download, monitor, and inspect CCXT ingestion jobs for Kraken pairs.</p>
+    <section class="panel">
+      <form id="fetchForm">
+        <div class="field">
+          <label for="exchange">Exchange</label>
+          <select id="exchange" name="exchange">
+            <option value="kraken">Kraken</option>
+          </select>
+        </div>
+        <div class="field">
+          <label for="symbol">Pair</label>
+          <select id="symbol" name="symbol">
+            <option value="BTC/USD">BTC/USD</option>
+            <option value="ETH/USD">ETH/USD</option>
+          </select>
+        </div>
+        <div class="field">
+          <label for="timeframe">Timeframe</label>
+          <select id="timeframe" name="timeframe">
+            <option value="1m">1m</option>
+            <option value="5m">5m</option>
+            <option value="15m">15m</option>
+            <option value="30m">30m</option>
+            <option value="1h">1h</option>
+            <option value="4h">4h</option>
+            <option value="1d">1d</option>
+            <option value="1w">1w</option>
+            <option value="2w">2w</option>
+          </select>
+        </div>
+        <div class="field">
+          <label for="start">Start Date (UTC)</label>
+          <input type="datetime-local" id="start" name="start" />
+        </div>
+        <div class="field">
+          <label for="end">End Date (UTC)</label>
+          <input type="datetime-local" id="end" name="end" />
+        </div>
+        <div class="field checkbox">
+          <label>
+            <input type="checkbox" id="fullHistory" />
+            Full history
+          </label>
+        </div>
+        <button type="submit">Fetch</button>
+      </form>
+      <p class="hint">Note: Kraken REST returns max 720 candles per call. Large ranges may take time.</p>
+    </section>
+
+    <section class="panel">
+      <h2>Jobs</h2>
+      <table id="jobsTable">
+        <thead>
+          <tr>
+            <th>ID</th>
+            <th>Pair</th>
+            <th>Timeframe</th>
+            <th>Status</th>
+            <th>Progress</th>
+            <th>Updated</th>
+            <th>Info</th>
+          </tr>
+        </thead>
+        <tbody></tbody>
+      </table>
+    </section>
+
+    <section class="panel">
+      <h2>Coverage</h2>
+      <div class="coverage-controls">
+        <label for="coverageSymbol">Symbol</label>
+        <select id="coverageSymbol">
+          <option value="BTC/USD">BTC/USD</option>
+          <option value="ETH/USD">ETH/USD</option>
+        </select>
+        <button id="refreshCoverage">Refresh</button>
+      </div>
+      <table id="coverageTable">
+        <thead>
+          <tr>
+            <th>Timeframe</th>
+            <th>Start</th>
+            <th>End</th>
+          </tr>
+        </thead>
+        <tbody></tbody>
+      </table>
+    </section>
+  </main>
+  <script src="/static/fetch-history.js" type="module"></script>
+</body>
+</html>
