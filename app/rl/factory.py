@@ -40,7 +40,7 @@ def make_wrapped_env(
         episode_minutes = config.episode_minutes
     # Ensure episodes never exceed configured minutes.
     env = TimeLimit(env, max_episode_steps=episode_minutes)
-    env = Monitor(env)
+    env = Monitor(env, info_keywords=("episode_pnl_usd", "episode_return_pct"))
     return env
 
 

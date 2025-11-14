@@ -10,6 +10,8 @@ const latestRunEl = document.getElementById('latestRun');
 const latestRunTimeEl = document.getElementById('latestRunTime');
 const avgStepsEl = document.getElementById('avgSteps');
 const avgFpsEl = document.getElementById('avgFps');
+const detailProfit = document.getElementById('detailProfit');
+const detailReturn = document.getElementById('detailReturn');
 const rewardMetricSelect = document.getElementById('rewardMetric');
 const throughputMetricSelect = document.getElementById('throughputMetric');
 const scatterCanvas = document.getElementById('scatterChart');
@@ -99,7 +101,12 @@ function updateSummary(runs, selectedId) {
   const selectedMean = selected?.eval_summary?.mean_reward;
   selectedRewardEl.textContent = selectedMean === undefined ? '—' : formatNumber(selectedMean);
   if (selected) {
-    selectedLabelEl.textContent = selected.tag || selected.name;
+    const profit = selected.eval_summary?.mean_profit_usd;
+    const labelParts = [selected.tag || selected.name];
+    if (profit !== undefined) {
+      labelParts.push(formatCurrency(profit));
+    }
+    selectedLabelEl.textContent = labelParts.join(' • ');
   } else {
     selectedLabelEl.textContent = 'Click a run below to analyze';
   }
@@ -136,11 +143,13 @@ function renderTable(runs) {
   runs.forEach((run) => {
     const row = document.createElement('tr');
     const mean = run.eval_summary?.mean_reward;
+    const meanProfit = run.eval_summary?.mean_profit_usd;
     const std = run.eval_summary?.std_reward ?? run.eval_summary?.std ?? '—';
     row.innerHTML = `
       <td>${run.name}</td>
       <td>${run.tag}</td>
       <td>${mean === undefined ? '—' : formatNumber(mean)}</td>
+      <td>${meanProfit === undefined ? '—' : formatCurrency(meanProfit)}</td>
       <td>${std === undefined ? '—' : formatNumber(std)}</td>
       <td>${(run.train_meta?.total_timesteps ?? '—').toLocaleString?.() || run.train_meta?.total_timesteps || '—'}</td>
       <td>${run.train_meta?.seed ?? '—'}</td>
@@ -230,7 +239,8 @@ function renderCharts(runs) {
       const reward = run.eval_summary?.mean_reward;
       if (!duration || reward === undefined) return null;
       const fps = run.train_meta?.total_timesteps && duration ? run.train_meta.total_timesteps / duration : null;
-      return {x: duration, y: reward, label: run.tag || run.name, fps, idx: run.name};
+      const profit = run.eval_summary?.mean_profit_usd;
+      return {x: duration, y: reward, label: run.tag || run.name, fps, profit, idx: run.name};
     })
     .filter(Boolean);
   if (scatterChart) scatterChart.destroy();
@@ -255,7 +265,8 @@ function renderCharts(runs) {
               const duration = formatDuration(point.x);
               const reward = formatNumber(point.y);
               const fps = point.fps ? `${point.fps.toFixed(1)} fps` : '—';
-              return `${label}: reward ${reward}, duration ${duration}, ${fps}`;
+              const profit = point.profit !== undefined ? formatCurrency(point.profit) : '—';
+              return `${label}: reward ${reward}, duration ${duration}, ${fps}, profit ${profit}`;
             },
           },
         },
@@ -278,6 +289,11 @@ function formatNumber(value) {
   return Number(value).toFixed(3);
 }
 
+function formatCurrency(value) {
+  if (value === null || value === undefined || Number.isNaN(value)) return '—';
+  return `$${Number(value).toFixed(2)}`;
+}
+
 function formatDate(value) {
   if (!value) return '—';
   return new Date(value).toLocaleString();
@@ -289,6 +305,9 @@ function selectRewardMetric(run, metric) {
   }
   if (metric === 'eval_episodes') {
     return run.train_meta?.eval_episodes ?? run.eval_summary?.episodes ?? null;
+  }
+  if (metric === 'mean_profit_usd') {
+    return run.eval_summary?.mean_profit_usd ?? null;
   }
   return run.eval_summary?.mean_reward ?? null;
 }
@@ -311,6 +330,7 @@ function selectThroughputMetric(run, metric) {
 function rewardMetricLabel(metric) {
   if (metric === 'std_reward') return 'Std Reward';
   if (metric === 'eval_episodes') return 'Eval Episodes';
+  if (metric === 'mean_profit_usd') return 'Mean PnL ($)';
   return 'Mean Reward';
 }
 
@@ -350,6 +370,10 @@ function updateDetailPanel(run, job) {
   }
   const fps = run.train_meta?.total_timesteps && duration ? run.train_meta.total_timesteps / duration : null;
   detailFps.textContent = fps ? `${fps.toFixed(1)} fps` : '—';
+  const profit = run.eval_summary?.mean_profit_usd;
+  detailProfit.textContent = profit === undefined ? '—' : formatCurrency(profit);
+  const returnPct = run.eval_summary?.mean_return_pct;
+  detailReturn.textContent = returnPct === undefined ? '—' : `${(returnPct * 100).toFixed(2)}% mean return`;
   const seed = job?.seed ?? run.train_meta?.seed;
   detailSeed.textContent = seed ?? '—';
   const episodes = job?.episodes ?? run.train_meta?.eval_episodes;

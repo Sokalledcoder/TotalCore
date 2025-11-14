@@ -38,23 +38,43 @@ def main() -> None:
 
     returns = []
     lengths = []
+    profits = []
+    return_pcts = []
     for episode in range(args.episodes):
         obs = env.reset()
-        done = False
         score = 0.0
         steps = 0
-        while not done:
+        episode_profit = 0.0
+        last_info = None
+        while True:
             action, _ = model.predict(obs, deterministic=True)
-            obs, reward, done, _ = env.step(action)
-            score += float(np.asarray(reward).squeeze())
+            obs, rewards, dones, infos = env.step(action)
+            reward_value = float(np.asarray(rewards).squeeze())
+            score += reward_value
             steps += 1
-        returns.append(score)
-        lengths.append(steps)
-        print(f"Episode {episode + 1}: reward={score:.4f} steps={steps}")
+            info = infos[0] if infos else {}
+            last_info = info or last_info
+            if info and "equity_delta" in info:
+                episode_profit += info["equity_delta"]
+            if dones[0]:
+                final_profit = info.get("episode_pnl_usd", episode_profit)
+                final_return_pct = info.get("episode_return_pct")
+                returns.append(score)
+                lengths.append(steps)
+                profits.append(final_profit)
+                if final_return_pct is not None:
+                    return_pcts.append(final_return_pct)
+                print(
+                    f"Episode {episode + 1}: reward={score:.4f} steps={steps} profit={final_profit:.2f}"
+                )
+                break
 
     summary = {
         "mean_reward": sum(returns) / len(returns) if returns else 0.0,
         "mean_length": sum(lengths) / len(lengths) if lengths else 0,
+        "mean_profit_usd": sum(profits) / len(profits) if profits else 0.0,
+        "mean_return_pct": sum(return_pcts) / len(return_pcts) if return_pcts else 0.0,
+        "profits": profits,
         "episodes": args.episodes,
         "model": args.model,
         "env_config": args.env_config,

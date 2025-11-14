@@ -55,6 +55,8 @@ class TradeEnvironment(gym.Env):
         self._current_window: pd.DataFrame | None = None
         self._cursor: int = 0
         self._account: AccountState | None = None
+        self._episode_start_equity: float = 0.0
+        self._episode_pnl: float = 0.0
 
     def reset(self, *, seed: int | None = None, options: Dict[str, Any] | None = None):
         super().reset(seed=seed)
@@ -79,6 +81,8 @@ class TradeEnvironment(gym.Env):
             last_price=initial_price,
         )
         self._account.mark_to_market(initial_price)
+        self._episode_start_equity = self._account.equity
+        self._episode_pnl = 0.0
         obs = self.obs_builder.build(self._current_window.iloc[: self._cursor], self._account)
         info = self._build_info()
         return obs, info
@@ -107,6 +111,7 @@ class TradeEnvironment(gym.Env):
         stop_fees = self._apply_stop_if_triggered(next_price)
         equity_delta = self._account.equity - prev_equity
         reward_result = self.reward_calc.compute(equity_delta, fees_paid + stop_fees, self._account)
+        self._episode_pnl += reward_result.info.get("equity_delta", 0.0)
 
         if terminated:
             obs_window = self._current_window.iloc[self._cursor - self.obs_builder.window_size : self._cursor]
@@ -131,6 +136,13 @@ class TradeEnvironment(gym.Env):
             }
         )
         info.update(reward_result.info)
+        if terminated:
+            episode_pnl = self._account.equity - self._episode_start_equity
+            episode_return = 0.0
+            if self._episode_start_equity > 1e-6:
+                episode_return = episode_pnl / self._episode_start_equity
+            info["episode_pnl_usd"] = episode_pnl
+            info["episode_return_pct"] = episode_return
         truncated = False
         return obs, reward_result.reward, terminated, truncated, info
 
