@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+from typing import Literal
 
 from app.rl.execution import AccountState
 from app.rl.actions import ActionDecision
@@ -23,6 +24,7 @@ class RiskGuard:
     risk_pct: float
     stop_loss_bps: float
     max_position: float
+    sizing_mode: Literal["bucketed", "risk_based"] = "bucketed"
 
     def plan(self, decision: ActionDecision, price: float, account: AccountState) -> RiskPlan:
         equity = max(account.equity, 1e-6)
@@ -45,9 +47,14 @@ class RiskGuard:
         distance = max(distance, 1e-6)
         stop_price = price - distance if direction > 0 else price + distance
 
-        risk_units = risk_capital / distance
-        desired_units = size_fraction * self.max_position
-        units = min(risk_units, desired_units, self.max_position)
+        base_risk_units = risk_capital / distance
+        if self.sizing_mode == "risk_based":
+            multiplier = max(size_fraction, 1e-6)
+            desired_units = base_risk_units * multiplier
+            units = min(desired_units, self.max_position)
+        else:
+            desired_units = size_fraction * self.max_position
+            units = min(base_risk_units, desired_units, self.max_position)
         target_units = direction * units
 
         return RiskPlan(
@@ -55,7 +62,7 @@ class RiskGuard:
             stop_price=stop_price,
             stop_distance=distance,
             risk_capital=risk_capital,
-            risk_units=risk_units,
+            risk_units=base_risk_units,
             desired_units=desired_units,
             stop_steps=step,
         )

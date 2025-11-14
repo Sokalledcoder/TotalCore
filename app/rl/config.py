@@ -2,7 +2,7 @@
 from __future__ import annotations
 
 from datetime import datetime
-from typing import List, Sequence
+from typing import List, Sequence, Literal
 
 from pydantic import BaseModel, Field, field_validator
 
@@ -72,6 +72,7 @@ class EnvConfig(BaseModel):
     observation: ObservationConfig = Field(default_factory=ObservationConfig)
     action: ActionConfig = Field(default_factory=ActionConfig)
     reward: RewardConfig = Field(default_factory=RewardConfig)
+    risk_sizing_mode: Literal["bucketed", "risk_based"] = "bucketed"
 
     @property
     def fee_rate(self) -> float:

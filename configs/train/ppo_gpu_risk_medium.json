@@ -1,0 +1,36 @@
+{
+  "env_config_path": "configs/env/btcusd_1m_risk_based.json",
+  "algorithm": "ppo",
+  "total_timesteps": 900000,
+  "seed": 202,
+  "eval_episodes": 3,
+  "num_envs": 8,
+  "save_path": "models/ppo_gpu_risk_medium",
+  "log_dir": "runs/tensorboard/ppo_gpu_risk_medium",
+  "progress_bar": true,
+  "normalize_advantage": true,
+  "clip_range_vf": 0.2,
+  "ent_coef": 0.006,
+  "vf_coef": 0.5,
+  "max_grad_norm": 0.6,
+  "vecnormalize": {
+    "enabled": true,
+    "norm_obs": true,
+    "norm_reward": false,
+    "clip_obs": 5.0,
+    "clip_reward": 5.0,
+    "gamma": 0.99
+  },
+  "algo_kwargs": {
+    "learning_rate": 0.00018,
+    "n_steps": 4096,
+    "batch_size": 2048,
+    "gamma": 0.995,
+    "gae_lambda": 0.93,
+    "clip_range": 0.2,
+    "device": "cuda",
+    "policy_kwargs": {
+      "net_arch": [512, 512, 256]
+    }
+  }
+}

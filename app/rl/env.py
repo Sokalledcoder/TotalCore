@@ -40,6 +40,7 @@ class TradeEnvironment(gym.Env):
             risk_pct=config.risk_pct,
             stop_loss_bps=config.stop_loss_bps,
             max_position=config.max_position_size,
+            sizing_mode=config.risk_sizing_mode,
         )
         self.reward_calc = RewardCalculator(config.reward, scale=config.initial_cash)
         self.obs_builder = ObservationBuilder(
