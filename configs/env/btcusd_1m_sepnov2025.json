@@ -1,5 +1,5 @@
 {
-  "dataset_manifest_path": "data/manifests/btcusd_1m_sepnov2025.json",
+  "dataset_manifest_path": "data/manifests/btcusd_1m_2023-12_to_2025-11.json",
   "indicator_manifest_path": "configs/tools/default.json",
   "initial_cash": 100000.0,
   "max_position_size": 0.5,

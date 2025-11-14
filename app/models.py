@@ -4,7 +4,7 @@ from datetime import datetime
 from enum import Enum
 from typing import Optional, List, Literal, Dict, Any
 
-from pydantic import BaseModel, Field, validator
+from pydantic import BaseModel, Field, validator, model_validator
 
 
 SUPPORTED_EXCHANGES = {"kraken"}
@@ -90,3 +90,53 @@ class CoverageEntry(BaseModel):
 class JobAction(BaseModel):
     action: Literal["validate", "resume", "download"]
     payload: Dict[str, Any] = Field(default_factory=dict)
+
+
+class IndicatorSelection(BaseModel):
+    name: str
+    params: Dict[str, Any] = Field(default_factory=dict)
+
+
+class ExperimentLaunchRequest(BaseModel):
+    env_config_path: str
+    train_config_path: str
+    indicator_manifest_path: Optional[str] = None
+    indicator_manifest_inline: Optional[List[IndicatorSelection]] = None
+    risk_pct: Optional[float] = Field(None, gt=0)
+    stop_loss_steps: Optional[int] = Field(None, ge=1, le=10)
+    limit_fee_pct: Optional[float] = Field(None, ge=0)
+    market_fee_pct: Optional[float] = Field(None, ge=0)
+    tag: str = Field(..., min_length=1, max_length=32)
+    episodes: int = Field(1, ge=1, le=25)
+    seed: int = 0
+
+    @model_validator(mode="after")
+    def validate_manifest_choice(cls, values: "ExperimentLaunchRequest") -> "ExperimentLaunchRequest":
+        if values.indicator_manifest_path and values.indicator_manifest_inline:
+            raise ValueError("Provide either indicator_manifest_path or indicator_manifest_inline, not both")
+        return values
+
+
+class ExperimentJob(BaseModel):
+    id: str
+    status: JobStatus
+    tag: str
+    train_config_path: str
+    env_config_path: str
+    episodes: int
+    seed: int
+    overrides: Dict[str, Any] = Field(default_factory=dict)
+    result: Dict[str, Any] = Field(default_factory=dict)
+    error: Optional[str] = None
+    workdir: str
+    created_at: datetime
+    updated_at: datetime
+
+
+class ExperimentRunSummary(BaseModel):
+    name: str
+    run_dir: str
+    created_at: datetime
+    tag: str
+    train_meta: Dict[str, Any] = Field(default_factory=dict)
+    eval_summary: Dict[str, Any] = Field(default_factory=dict)

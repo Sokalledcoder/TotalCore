@@ -1,0 +1,136 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Experiment Control Panel</title>
+  <link rel="stylesheet" href="/static/styles.css" />
+</head>
+<body>
+  <main>
+    <h1>Experiment Control Panel</h1>
+    <p class="subtitle">Pick indicator menus, risk knobs, and fees before launching a local SB3 run.</p>
+
+    <section class="panel">
+      <form id="experimentForm">
+        <div class="field">
+          <label for="envConfig">Env Config</label>
+          <select id="envConfig" name="envConfig"></select>
+        </div>
+        <div class="field">
+          <label for="trainingConfig">Training Config</label>
+          <select id="trainingConfig" name="trainingConfig"></select>
+        </div>
+        <div class="field">
+          <label for="indicatorManifest">Indicator Manifest</label>
+          <select id="indicatorManifest" name="indicatorManifest"></select>
+          <p class="field-note">Choose a preset manifest or pick “Custom mix” to select indicators below.</p>
+        </div>
+        <div class="field">
+          <label for="riskPct">Risk %</label>
+          <input type="number" id="riskPct" step="0.001" min="0" />
+        </div>
+        <div class="field">
+          <label for="stopLossSteps">Stop Buckets</label>
+          <input type="number" id="stopLossSteps" step="1" min="1" />
+          <p class="field-note">How many discrete stop-loss nudges the agent can choose from (higher = finer control).</p>
+        </div>
+        <div class="field">
+          <label for="limitFeeBps">Limit Fee (%)</label>
+          <input type="number" id="limitFeeBps" step="0.001" min="0" />
+          <p class="field-note">Maker fee percent applied when limit orders fill.</p>
+        </div>
+        <div class="field">
+          <label for="marketFeeBps">Market Fee (%)</label>
+          <input type="number" id="marketFeeBps" step="0.001" min="0" />
+          <p class="field-note">Taker fee percent for market/stop fills.</p>
+        </div>
+        <div class="field">
+          <label for="episodes">Eval Episodes</label>
+          <input type="number" id="episodes" step="1" min="1" value="1" />
+          <p class="field-note">How many evaluation episodes to run after training; more = slower but more stable averages.</p>
+        </div>
+        <div class="field">
+          <label for="seed">Seed</label>
+          <input type="number" id="seed" step="1" value="123" />
+          <p class="field-note">Random seed for data sampling + agent init; change to shake up trajectories.</p>
+        </div>
+        <div class="field">
+          <label for="tag">Run Tag</label>
+          <input type="text" id="tag" maxlength="32" placeholder="control-panel" />
+        </div>
+        <div class="field">
+          <label>&nbsp;</label>
+          <button type="submit">Launch Run</button>
+        </div>
+      </form>
+      <p class="hint">Launches call <code>scripts/run_experiment.py</code> locally. Keep this tab open to watch job updates.</p>
+    </section>
+
+    <section class="panel">
+      <h2>Dataset Coverage</h2>
+      <table id="datasetTable">
+        <thead>
+          <tr>
+            <th>Name</th>
+            <th>Symbol</th>
+            <th>Range</th>
+            <th>Rows</th>
+          </tr>
+        </thead>
+        <tbody></tbody>
+      </table>
+    </section>
+
+    <section class="panel">
+      <div class="panel-header">
+        <h2>Indicator Catalog</h2>
+        <button type="button" id="clearIndicators" class="ghost">Clear Selection</button>
+      </div>
+      <p class="hint">Leave the preset blank above to build a custom mix. Checked indicators will be packaged into a per-run manifest.</p>
+      <div id="indicatorCatalog" class="indicator-grid"></div>
+    </section>
+
+    <section class="panel">
+      <div class="panel-header">
+        <h2>Launch Jobs</h2>
+        <button type="button" id="refreshJobs">Refresh</button>
+      </div>
+      <table id="jobsTable">
+        <thead>
+          <tr>
+            <th>ID</th>
+            <th>Tag</th>
+            <th>Status</th>
+            <th>Episodes</th>
+            <th>Seed</th>
+            <th>Result</th>
+            <th>Updated</th>
+          </tr>
+        </thead>
+        <tbody></tbody>
+      </table>
+    </section>
+
+    <section class="panel">
+      <div class="panel-header">
+        <h2>Recent Runs</h2>
+        <button type="button" id="refreshRuns">Refresh</button>
+      </div>
+      <table id="runsTable">
+        <thead>
+          <tr>
+            <th>Run</th>
+            <th>Tag</th>
+            <th>Mean Reward</th>
+            <th>Timesteps</th>
+            <th>Created</th>
+          </tr>
+        </thead>
+        <tbody></tbody>
+      </table>
+    </section>
+  </main>
+  <script src="/static/control-panel.js" type="module"></script>
+</body>
+</html>

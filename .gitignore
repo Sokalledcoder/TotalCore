@@ -10,13 +10,16 @@ __pycache__/
 .env
 
 # Local data/artifacts
+/data/lake/
 data/jobs.db
+/data/experiments.db
 /runs/
 /models/
 /runpod_submissions/
 runpod_payload.json
 tmp_payload.json
 *.tar.gz
+/aws_*.log
 
 # Frontend build caches
 frontend/node_modules/
