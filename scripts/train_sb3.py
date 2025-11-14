@@ -29,6 +29,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--log-dir", help="Optional tensorboard log dir; omit to disable")
     parser.add_argument("--save-path", help="Override model save path")
     parser.add_argument("--eval-episodes", type=int, help="Override eval episode count")
+    parser.add_argument("--num-envs", type=int, help="Override number of parallel envs")
     parser.add_argument("--progress-bar", action="store_true", help="Enable SB3 progress bar (requires tqdm/rich)")
     return parser.parse_args()
 
@@ -62,6 +63,8 @@ def main() -> None:
         overrides["seed"] = args.seed
     if args.eval_episodes is not None:
         overrides["eval_episodes"] = args.eval_episodes
+    if args.num_envs is not None:
+        overrides["num_envs"] = args.num_envs
     if args.save_path:
         overrides["save_path"] = args.save_path
     if args.log_dir is not None:
@@ -79,7 +82,12 @@ def main() -> None:
     save_path = Path(train_cfg.save_path)
     save_path.parent.mkdir(parents=True, exist_ok=True)
 
-    vec_env = build_vec_env(train_cfg.env_config_path, train_cfg.seed)
+    vec_env = build_vec_env(
+        train_cfg.env_config_path,
+        train_cfg.seed,
+        vecnormalize_path=None,
+        num_envs=train_cfg.num_envs,
+    )
     vecnormalize_path: Path | None = None
     if train_cfg.vecnormalize.enabled:
         vecnorm_kwargs = train_cfg.vecnormalize.to_kwargs()

@@ -7,7 +7,8 @@ from typing import Callable
 
 from gymnasium.wrappers import TimeLimit
 from stable_baselines3.common.monitor import Monitor
-from stable_baselines3.common.vec_env import DummyVecEnv, VecNormalize
+from stable_baselines3.common.vec_env import DummyVecEnv, SubprocVecEnv, VecNormalize
+from stable_baselines3.common.vec_env.base import VecEnv
 
 from .config import EnvConfig
 from .env import TradeEnvironment
@@ -43,13 +44,30 @@ def make_wrapped_env(
     return env
 
 
-def build_vec_env(config_path: str, seed: int, vecnormalize_path: str | None = None) -> DummyVecEnv:
-    config = load_env_config(config_path)
+def build_vec_env(
+    config_path: str,
+    seed: int,
+    vecnormalize_path: str | None = None,
+    num_envs: int = 1,
+) -> VecEnv:
+    if num_envs < 1:
+        raise ValueError("num_envs must be >= 1")
+    base_config = load_env_config(config_path)
+    config_payload = base_config.model_dump()
 
-    def _factory():
-        return make_wrapped_env(config, seed=seed, flatten_actions=True)
+    def _make_env_fn(offset: int):
+        def _factory():
+            cfg = EnvConfig.model_validate(config_payload)
+            env_seed = None if seed is None else seed + offset
+            return make_wrapped_env(cfg, seed=env_seed, flatten_actions=True)
 
-    env = DummyVecEnv([_factory])
+        return _factory
+
+    env_fns = [_make_env_fn(idx) for idx in range(num_envs)]
+    if num_envs == 1:
+        env: VecEnv = DummyVecEnv(env_fns)
+    else:
+        env = SubprocVecEnv(env_fns)
     if vecnormalize_path:
         env = VecNormalize.load(vecnormalize_path, env)
         env.training = False

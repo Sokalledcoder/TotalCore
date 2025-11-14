@@ -4,6 +4,7 @@
   "total_timesteps": 1500000,
   "seed": 321,
   "eval_episodes": 5,
+  "num_envs": 8,
   "save_path": "models/ppo_gpu_long",
   "log_dir": "runs/tensorboard/ppo_gpu_long",
   "progress_bar": true,
@@ -22,11 +23,14 @@
   },
   "algo_kwargs": {
     "learning_rate": 0.00015,
-    "n_steps": 16384,
-    "batch_size": 1024,
+    "n_steps": 8192,
+    "batch_size": 4096,
     "gamma": 0.997,
     "gae_lambda": 0.9,
-    "clip_range": 0.12,
-    "device": "cuda"
+    "clip_range": 0.15,
+    "device": "cuda",
+    "policy_kwargs": {
+      "net_arch": [768, 768, 384]
+    }
   }
 }

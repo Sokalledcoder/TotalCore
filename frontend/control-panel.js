@@ -125,7 +125,8 @@ function formatTrainingOptionLabel(config) {
   const algo = (config.algorithm || '').toUpperCase();
   const steps = typeof config.total_timesteps === 'number' ? config.total_timesteps.toLocaleString() : '—';
   const device = config.device || 'cpu';
-  return `${name} [${algo || 'N/A'} | ${steps} steps | ${device}]`;
+  const envs = config.num_envs ? `${config.num_envs} envs` : '1 env';
+  return `${name} [${algo || 'N/A'} | ${steps} steps | ${device} | ${envs}]`;
 }
 
 function applyEnvDefaults() {

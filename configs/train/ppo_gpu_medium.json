@@ -1,9 +1,10 @@
 {
   "env_config_path": "configs/env/btcusd_1m_sepnov2025_extended.json",
   "algorithm": "ppo",
-  "total_timesteps": 750000,
+  "total_timesteps": 800000,
   "seed": 123,
   "eval_episodes": 3,
+  "num_envs": 8,
   "save_path": "models/ppo_gpu_medium",
   "log_dir": "runs/tensorboard/ppo_gpu_medium",
   "progress_bar": true,
@@ -22,11 +23,14 @@
   },
   "algo_kwargs": {
     "learning_rate": 0.0002,
-    "n_steps": 8192,
-    "batch_size": 512,
+    "n_steps": 4096,
+    "batch_size": 2048,
     "gamma": 0.995,
-    "gae_lambda": 0.92,
-    "clip_range": 0.15,
-    "device": "cuda"
+    "gae_lambda": 0.93,
+    "clip_range": 0.2,
+    "device": "cuda",
+    "policy_kwargs": {
+      "net_arch": [512, 512, 256]
+    }
   }
 }

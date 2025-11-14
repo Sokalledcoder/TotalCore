@@ -32,7 +32,7 @@ def parse_args() -> argparse.Namespace:
 
 def main() -> None:
     args = parse_args()
-    env = build_vec_env(args.env_config, args.seed, args.vecnormalize)
+    env = build_vec_env(args.env_config, args.seed, args.vecnormalize, num_envs=1)
     algo_cls = ALGORITHMS[args.algo]
     model = algo_cls.load(args.model, env=env)
 

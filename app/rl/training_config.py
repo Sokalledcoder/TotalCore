@@ -36,6 +36,7 @@ class TrainingConfig(BaseModel):
     total_timesteps: int = Field(10_000, ge=1)
     seed: int = 0
     eval_episodes: int = Field(2, ge=0)
+    num_envs: int = Field(1, ge=1, description="How many parallel env instances to launch")
     save_path: str = "models/agent"
     log_dir: Optional[str] = None
     progress_bar: bool = False
