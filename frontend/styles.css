@@ -182,7 +182,6 @@ tr:hover td {
 
 .indicator-card.disabled {
   opacity: 0.5;
-  pointer-events: none;
 }
 
 .indicator-header {

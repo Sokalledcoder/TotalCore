@@ -1,0 +1,32 @@
+{
+  "env_config_path": "configs/env/btcusd_1m_sepnov2025_extended.json",
+  "algorithm": "ppo",
+  "total_timesteps": 1500000,
+  "seed": 321,
+  "eval_episodes": 5,
+  "save_path": "models/ppo_gpu_long",
+  "log_dir": "runs/tensorboard/ppo_gpu_long",
+  "progress_bar": true,
+  "normalize_advantage": true,
+  "clip_range_vf": 0.2,
+  "ent_coef": 0.01,
+  "vf_coef": 0.5,
+  "max_grad_norm": 0.6,
+  "vecnormalize": {
+    "enabled": true,
+    "norm_obs": true,
+    "norm_reward": false,
+    "clip_obs": 5.0,
+    "clip_reward": 5.0,
+    "gamma": 0.99
+  },
+  "algo_kwargs": {
+    "learning_rate": 0.00015,
+    "n_steps": 16384,
+    "batch_size": 1024,
+    "gamma": 0.997,
+    "gae_lambda": 0.9,
+    "clip_range": 0.12,
+    "device": "cuda"
+  }
+}

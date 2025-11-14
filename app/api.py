@@ -369,6 +369,7 @@ def _scan_training_configs() -> List[Dict[str, Any]]:
                 "algorithm": cfg.algorithm,
                 "total_timesteps": cfg.total_timesteps,
                 "seed": cfg.seed,
+                "device": (cfg.algo_kwargs or {}).get("device"),
             }
         )
     return configs

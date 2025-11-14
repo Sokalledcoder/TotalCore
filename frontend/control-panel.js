@@ -94,12 +94,17 @@ async function loadOptions() {
 
 function populateSelects() {
   populateSelect(envSelect, runOptions?.env_configs ?? []);
-  populateSelect(trainingSelect, runOptions?.training_configs ?? []);
+  populateSelect(
+    trainingSelect,
+    runOptions?.training_configs ?? [],
+    false,
+    formatTrainingOptionLabel,
+  );
   populateSelect(manifestSelect, runOptions?.indicator_manifests ?? [], true);
   renderIndicatorCatalog();
 }
 
-function populateSelect(select, items, allowEmpty = false) {
+function populateSelect(select, items, allowEmpty = false, formatter = null) {
   select.innerHTML = '';
   if (allowEmpty) {
     const opt = document.createElement('option');
@@ -110,9 +115,17 @@ function populateSelect(select, items, allowEmpty = false) {
   for (const item of items) {
     const option = document.createElement('option');
     option.value = item.path;
-    option.textContent = item.name || item.path;
+    option.textContent = formatter ? formatter(item) : (item.name || item.path);
     select.appendChild(option);
   }
+}
+
+function formatTrainingOptionLabel(config) {
+  const name = config.name || config.path;
+  const algo = (config.algorithm || '').toUpperCase();
+  const steps = typeof config.total_timesteps === 'number' ? config.total_timesteps.toLocaleString() : '—';
+  const device = config.device || 'cpu';
+  return `${name} [${algo || 'N/A'} | ${steps} steps | ${device}]`;
 }
 
 function applyEnvDefaults() {
