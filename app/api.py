@@ -56,6 +56,14 @@ def control_panel():
     return FileResponse(control_path)
 
 
+@app.get("/run-insights")
+def run_insights():
+    insights_path = REPO_ROOT / "frontend" / "run-insights.html"
+    if not insights_path.exists():
+        raise HTTPException(status_code=404, detail="Insights page is not available yet")
+    return FileResponse(insights_path)
+
+
 @app.post("/api/data-jobs", response_model=DataJob)
 def create_job(payload: DataJobCreate, background_tasks: BackgroundTasks):
     job_id = str(uuid.uuid4())
@@ -132,6 +140,22 @@ def list_dataset_manifests():
 @app.get("/api/experiment-runs", response_model=List[ExperimentRunSummary])
 def list_experiment_runs():
     return _scan_experiment_runs()
+
+
+@app.get("/api/experiment-details")
+def get_experiment_details(limit: int = 30):
+    runs = _scan_experiment_runs(limit=limit)
+    jobs = experiment_store.list_jobs()
+    jobs_payload: List[Dict[str, Any]] = []
+    for job in jobs[:limit]:
+        payload = job.model_dump(mode="json")
+        duration = (job.updated_at - job.created_at).total_seconds()
+        payload["duration_seconds"] = duration
+        jobs_payload.append(payload)
+    return {
+        "runs": [run.model_dump(mode="json") for run in runs],
+        "jobs": jobs_payload,
+    }
 
 
 @app.get("/api/experiment-jobs", response_model=List[ExperimentJob])

@@ -1,0 +1,161 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Run Insights</title>
+  <link rel="stylesheet" href="/static/styles.css" />
+  <script src="https://cdn.jsdelivr.net/npm/chart.js" defer></script>
+  <script src="https://cdn.jsdelivr.net/npm/luxon@3/build/global/luxon.min.js" defer></script>
+  <script src="https://cdn.jsdelivr.net/npm/chartjs-adapter-luxon@1" defer></script>
+</head>
+<body>
+  <nav class="top-nav">
+    <a href="/" class="logo">TradeCore</a>
+    <div class="nav-links">
+      <a href="/">Fetch History</a>
+      <a href="/control-panel">Control Panel</a>
+      <a href="/run-insights" class="active">Run Insights</a>
+    </div>
+  </nav>
+  <main>
+    <h1>Run Insights</h1>
+    <p class="subtitle">Review recent experiment runs, compare rewards, and monitor throughput.</p>
+
+    <section class="panel" id="summaryPanel">
+      <div class="summary-grid">
+        <div class="summary-card">
+          <p class="label">Best Mean Reward</p>
+          <p class="value" id="bestReward">—</p>
+          <p class="hint" id="bestRewardTag">Awaiting data…</p>
+        </div>
+        <div class="summary-card">
+          <p class="label">Selected Run</p>
+          <p class="value" id="selectedReward">—</p>
+          <p class="hint" id="selectedLabel">Click a run below to analyze</p>
+        </div>
+        <div class="summary-card">
+          <p class="label">Latest Run</p>
+          <p class="value" id="latestRun">—</p>
+          <p class="hint" id="latestRunTime">—</p>
+        </div>
+        <div class="summary-card">
+          <p class="label">Avg Timesteps / FPS</p>
+          <p class="value" id="avgSteps">—</p>
+          <p class="hint" id="avgFps">—</p>
+        </div>
+      </div>
+    </section>
+
+    <section class="panel">
+      <div class="panel-header">
+        <h2>Performance Metrics</h2>
+        <div class="panel-actions">
+          <label for="rewardMetric">Metric</label>
+          <select id="rewardMetric">
+            <option value="mean_reward" selected>Mean Reward</option>
+            <option value="std_reward">Std Reward</option>
+            <option value="eval_episodes">Eval Episodes</option>
+          </select>
+          <button type="button" id="refreshInsights">Refresh</button>
+        </div>
+      </div>
+      <canvas id="rewardChart" height="120"></canvas>
+    </section>
+
+    <section class="panel">
+      <div class="panel-header">
+        <h2>Throughput</h2>
+        <div class="panel-actions">
+          <label for="throughputMetric">Metric</label>
+          <select id="throughputMetric">
+            <option value="total_timesteps" selected>Total Timesteps</option>
+            <option value="duration_seconds">Duration (s)</option>
+            <option value="fps">Avg FPS</option>
+          </select>
+        </div>
+      </div>
+      <canvas id="throughputChart" height="120"></canvas>
+    </section>
+
+    <section class="panel">
+      <div class="panel-header">
+        <h2>Reward vs Duration</h2>
+        <span class="hint">Helps spot fast + profitable configs</span>
+      </div>
+      <canvas id="scatterChart" height="120"></canvas>
+    </section>
+
+    <section class="panel">
+      <div class="panel-header">
+        <h2>Recent Runs</h2>
+        <span class="hint">Sorted by newest first</span>
+      </div>
+      <table id="runsTable" class="clickable">
+        <thead>
+          <tr>
+            <th>Run</th>
+            <th>Tag</th>
+            <th>Mean Reward</th>
+            <th>Std</th>
+            <th>Timesteps</th>
+            <th>Seed</th>
+            <th>Created</th>
+          </tr>
+        </thead>
+        <tbody></tbody>
+      </table>
+    </section>
+
+    <section class="panel" id="detailPanel" hidden>
+      <div class="panel-header">
+        <h2>Run Detail</h2>
+        <span class="hint" id="detailRunLabel">Select a run to inspect overrides and metrics</span>
+      </div>
+      <div class="detail-grid">
+        <div class="detail-card">
+          <p class="label">Tag</p>
+          <p class="value" id="detailTag">—</p>
+        </div>
+        <div class="detail-card">
+          <p class="label">Status</p>
+          <p class="value" id="detailStatus">—</p>
+        </div>
+        <div class="detail-card">
+          <p class="label">Duration</p>
+          <p class="value" id="detailDuration">—</p>
+          <p class="hint" id="detailDurationExact"></p>
+        </div>
+        <div class="detail-card">
+          <p class="label">Seed / Episodes</p>
+          <p class="value" id="detailSeed">—</p>
+          <p class="hint" id="detailEpisodes">—</p>
+        </div>
+        <div class="detail-card">
+          <p class="label">Avg FPS</p>
+          <p class="value" id="detailFps">—</p>
+        </div>
+      </div>
+      <div class="detail-grid">
+        <div class="detail-card">
+          <p class="label">Env Config</p>
+          <p class="mono" id="detailEnv">—</p>
+        </div>
+        <div class="detail-card">
+          <p class="label">Training Config</p>
+          <p class="mono" id="detailTrain">—</p>
+        </div>
+        <div class="detail-card">
+          <p class="label">Run Dir</p>
+          <p class="mono" id="detailRunDir">—</p>
+        </div>
+      </div>
+      <div class="detail-card full">
+        <p class="label">Overrides</p>
+        <pre id="detailOverrides">{}</pre>
+      </div>
+    </section>
+  </main>
+  <script src="/static/run-insights.js" type="module"></script>
+</body>
+</html>
