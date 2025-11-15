@@ -20,3 +20,18 @@ This prototype replaces the MLP policy backbone with a lightweight transformer e
 3. As with other remote runs, sync `runs/experiments/<timestamp>` back into the repo so the Run Insights dashboard can visualize the metrics.
 
 This is an early experiments preset; expect to tune `d_model`, number of layers, and learning-rate/batch settings as we gather results. For quick experiments you can override `--num-envs` or tweak `features_extractor_kwargs` in the JSON without editing code.
+
+## Action Traces & Replay
+
+- Each training run writes per-step action traces to `models/<save_name>_actions.csv`. The log captures direction, size, stops, cash/equity, and price for every env step so you can audit behavior.
+- To replay a trained policy on held-out data and produce Plotly-ready traces:
+  ```bash
+  python scripts/replay_policy.py \
+    --model runs/experiments/<run>/models/ppo_gpu_transformer.zip \
+    --algo ppo \
+    --env-config configs/env/btcusd_1m_risk_based.json \
+    --vecnormalize runs/experiments/<run>/models/ppo_gpu_transformer_vecnormalize.pkl \
+    --episodes 2 \
+    --output traces/transformer_replay.csv
+  ```
+  The CSV mirrors the training log fields, making it easy to chart actions/equity with Plotly or integrate into Run Insights later.

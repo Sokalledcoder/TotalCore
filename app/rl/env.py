@@ -158,6 +158,7 @@ class TradeEnvironment(gym.Env):
             "equity": self._account.equity,
             "drawdown": self._account.drawdown,
             "stop_price": self._account.stop_price,
+            "last_price": self._account.last_price,
         }
 
     def _apply_stop_if_triggered(self, price: float) -> float:

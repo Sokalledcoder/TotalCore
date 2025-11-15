@@ -11,6 +11,7 @@ from stable_baselines3 import A2C, PPO
 from stable_baselines3.common.evaluation import evaluate_policy
 from stable_baselines3.common.vec_env import VecNormalize
 
+from app.rl.callbacks import ActionLoggerCallback
 from app.rl.factory import build_vec_env
 from app.rl.training_config import TrainingConfig, load_training_config
 
@@ -147,7 +148,13 @@ def main() -> None:
         tensorboard_log=tensorboard_log,
         **algo_kwargs,
     )
-    model.learn(total_timesteps=train_cfg.total_timesteps, progress_bar=train_cfg.progress_bar)
+    action_log_path = Path(train_cfg.save_path).parent / f"{Path(train_cfg.save_path).name}_actions.csv"
+    action_logger = ActionLoggerCallback(action_log_path)
+    model.learn(
+        total_timesteps=train_cfg.total_timesteps,
+        progress_bar=train_cfg.progress_bar,
+        callback=action_logger,
+    )
     model.save(str(save_path))
     if vecnormalize_path is not None and isinstance(vec_env, VecNormalize):
         vec_env.save(str(vecnormalize_path))
