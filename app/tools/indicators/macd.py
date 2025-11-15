@@ -26,7 +26,7 @@ class MACDIndicator:
                 self.signal_column: signal_line,
                 self.hist_column: histogram,
             }
-        )
+        ).astype(float)
 
     @property
     def macd_column(self) -> str:

@@ -15,8 +15,8 @@ class ADXIndicator:
         low = frame["low"].astype(float)
         close = frame["close"].astype(float)
 
-        up_move = high.diff()
-        down_move = low.shift(1) - low
+        up_move = high.diff().astype(float)
+        down_move = (low.shift(1) - low).astype(float)
 
         plus_dm = up_move.where((up_move > down_move) & (up_move > 0), 0.0)
         minus_dm = down_move.where((down_move > up_move) & (down_move > 0), 0.0)
@@ -39,7 +39,7 @@ class ADXIndicator:
         dx *= 100
         adx = dx.ewm(alpha=self.alpha, adjust=False).mean()
 
-        return pd.DataFrame({self.column_name: adx})
+        return pd.DataFrame({self.column_name: adx.astype(float)})
 
     @property
     def column_name(self) -> str:
