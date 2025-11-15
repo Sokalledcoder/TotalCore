@@ -18,8 +18,8 @@ class ADXIndicator:
         up_move = high.diff().fillna(0.0).astype(float)
         down_move = (low.shift(1) - low).fillna(0.0).astype(float)
 
-        plus_dm = up_move.where((up_move > down_move) & (up_move > 0), 0.0)
-        minus_dm = down_move.where((down_move > up_move) & (down_move > 0), 0.0)
+        plus_dm = up_move.where((up_move > down_move) & (up_move > 0), 0.0).astype(float)
+        minus_dm = down_move.where((down_move > up_move) & (down_move > 0), 0.0).astype(float)
 
         tr_components = pd.concat(
             [
@@ -29,11 +29,12 @@ class ADXIndicator:
             ],
             axis=1,
         )
-        true_range = tr_components.max(axis=1)
+        true_range = tr_components.max(axis=1).astype(float)
 
-        atr = true_range.fillna(0.0).ewm(alpha=self.alpha, adjust=False).mean()
-        plus_di = 100 * (plus_dm.ewm(alpha=self.alpha, adjust=False).mean() / atr.replace(0, pd.NA))
-        minus_di = 100 * (minus_dm.ewm(alpha=self.alpha, adjust=False).mean() / atr.replace(0, pd.NA))
+        atr = true_range.fillna(0.0).astype(float).ewm(alpha=self.alpha, adjust=False).mean()
+        atr_safe = atr.replace(0, pd.NA)
+        plus_di = 100 * (plus_dm.fillna(0.0).ewm(alpha=self.alpha, adjust=False).mean() / atr_safe)
+        minus_di = 100 * (minus_dm.fillna(0.0).ewm(alpha=self.alpha, adjust=False).mean() / atr_safe)
 
         dx = (plus_di - minus_di).abs() / (plus_di + minus_di).replace(0, pd.NA)
         dx *= 100
