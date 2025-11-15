@@ -21,6 +21,18 @@ This prototype replaces the MLP policy backbone with a lightweight transformer e
 
 This is an early experiments preset; expect to tune `d_model`, number of layers, and learning-rate/batch settings as we gather results. For quick experiments you can override `--num-envs` or tweak `features_extractor_kwargs` in the JSON without editing code.
 
+## RTX PRO preset
+
+- Use `configs/train/ppo_gpu_transformer_rtxpro.json` when running on 28‑core / 96 GB RTX PRO pods. It spins up 20 env workers and a wider transformer (`d_model=420`, 6 layers, 12 heads) sized for the extra VRAM. Launch inside tmux:
+  ```bash
+  CUDA_VISIBLE_DEVICES=0 python scripts/run_experiment.py \
+    --train-config configs/train/ppo_gpu_transformer_rtxpro.json \
+    --episodes 3 \
+    --seed 505 \
+    --tag runpod-transformer-rtxpro
+  ```
+  Adjust `--episodes` or `--tag` to taste; the preset already sets `num_envs=20`, so no extra flag is required.
+
 ## Action Traces & Replay
 
 - Each training run writes per-step action traces to `models/<save_name>_actions.csv`. The log captures direction, size, stops, cash/equity, and price for every env step so you can audit behavior.

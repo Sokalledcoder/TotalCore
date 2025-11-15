@@ -8,8 +8,10 @@ from typing import Dict, List
 import pandas as pd
 
 from .base import Indicator
+from .indicators.adx import ADXIndicator
 from .indicators.atr import ATRIndicator
 from .indicators.bbands import BollingerBandsIndicator
+from .indicators.macd import MACDIndicator
 from .indicators.rsi import RSIIndicator
 from .indicators.vwap import VWAPIndicator
 from .indicators.zscore import ZScoreIndicator
@@ -76,6 +78,31 @@ _INDICATOR_DEFINITIONS: Dict[str, Dict] = {
                 "max": 5.0,
                 "step": 0.1,
             },
+            {
+                "key": "field",
+                "label": "Field",
+                "type": "choice",
+                "options": ["open", "high", "low", "close"],
+                "default": "close",
+            },
+        ],
+    },
+    "adx": {
+        "class": ADXIndicator,
+        "label": "ADX",
+        "description": "Average Directional Index (trend strength).",
+        "params": [
+            {"key": "window", "label": "Window", "type": "int", "default": 14, "min": 5, "max": 200, "step": 1},
+        ],
+    },
+    "macd": {
+        "class": MACDIndicator,
+        "label": "MACD",
+        "description": "Moving Average Convergence Divergence.",
+        "params": [
+            {"key": "fast", "label": "Fast EMA", "type": "int", "default": 12, "min": 2, "max": 100, "step": 1},
+            {"key": "slow", "label": "Slow EMA", "type": "int", "default": 26, "min": 2, "max": 200, "step": 1},
+            {"key": "signal", "label": "Signal EMA", "type": "int", "default": 9, "min": 1, "max": 100, "step": 1},
             {
                 "key": "field",
                 "label": "Field",

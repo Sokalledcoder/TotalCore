@@ -4,6 +4,8 @@
     {"name": "zscore", "params": {"window": 60, "field": "close"}},
     {"name": "atr", "params": {"window": 14}},
     {"name": "rsi", "params": {"window": 14, "field": "close"}},
-    {"name": "bollinger", "params": {"window": 20, "std_mult": 2.0, "field": "close"}}
+    {"name": "bollinger", "params": {"window": 20, "std_mult": 2.0, "field": "close"}},
+    {"name": "adx", "params": {"window": 14}},
+    {"name": "macd", "params": {"fast": 12, "slow": 26, "signal": 9, "field": "close"}}
   ]
 }
