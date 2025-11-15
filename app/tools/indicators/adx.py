@@ -15,8 +15,8 @@ class ADXIndicator:
         low = frame["low"].astype(float)
         close = frame["close"].astype(float)
 
-        up_move = high.diff().astype(float)
-        down_move = (low.shift(1) - low).astype(float)
+        up_move = high.diff().fillna(0.0).astype(float)
+        down_move = (low.shift(1) - low).fillna(0.0).astype(float)
 
         plus_dm = up_move.where((up_move > down_move) & (up_move > 0), 0.0)
         minus_dm = down_move.where((down_move > up_move) & (down_move > 0), 0.0)
@@ -31,9 +31,9 @@ class ADXIndicator:
         )
         true_range = tr_components.max(axis=1)
 
-        atr = true_range.ewm(alpha=self.alpha, adjust=False).mean()
-        plus_di = 100 * (plus_dm.ewm(alpha=self.alpha, adjust=False).mean() / atr)
-        minus_di = 100 * (minus_dm.ewm(alpha=self.alpha, adjust=False).mean() / atr)
+        atr = true_range.fillna(0.0).ewm(alpha=self.alpha, adjust=False).mean()
+        plus_di = 100 * (plus_dm.ewm(alpha=self.alpha, adjust=False).mean() / atr.replace(0, pd.NA))
+        minus_di = 100 * (minus_dm.ewm(alpha=self.alpha, adjust=False).mean() / atr.replace(0, pd.NA))
 
         dx = (plus_di - minus_di).abs() / (plus_di + minus_di).replace(0, pd.NA)
         dx *= 100
