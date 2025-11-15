@@ -22,6 +22,9 @@ class TransformerFeatureExtractor(BaseFeaturesExtractor):
         dim_feedforward: int = 512,
         dropout: float = 0.1,
         use_cls_token: bool = True,
+        context_attention_layers: int = 0,
+        context_attention_heads: int | None = None,
+        context_ff_mult: int = 4,
     ) -> None:
         super().__init__(observation_space, features_dim)
 
@@ -55,6 +58,21 @@ class TransformerFeatureExtractor(BaseFeaturesExtractor):
         if use_cls_token:
             self.cls_token = nn.Parameter(torch.zeros(1, 1, d_model))
 
+        self.context_blocks: nn.ModuleList | None = None
+        context_heads = context_attention_heads or nhead
+        if context_attention_layers > 0:
+            self.context_blocks = nn.ModuleList(
+                [
+                    _ContextAttentionBlock(
+                        d_model=d_model,
+                        nhead=context_heads,
+                        dim_feedforward=d_model * context_ff_mult,
+                        dropout=dropout,
+                    )
+                    for _ in range(context_attention_layers)
+                ]
+            )
+
         combined_dim = d_model * 2
         self.output = nn.Sequential(
             nn.LayerNorm(combined_dim),
@@ -86,10 +104,44 @@ class TransformerFeatureExtractor(BaseFeaturesExtractor):
         x = x + pos
         encoded = self.encoder(x)
         if self.use_cls:
-            pooled = encoded[:, 0, :]
+            pooled = encoded[:, 0:1, :]
         else:
-            pooled = encoded.mean(dim=1)
+            pooled = encoded.mean(dim=1, keepdim=True)
+
+        if self.context_blocks is not None:
+            query = pooled
+            for block in self.context_blocks:
+                query = block(query, encoded)
+            pooled = query
+
+        pooled = pooled.squeeze(1)
 
         account_embed = self.account_proj(account)
         combined = torch.cat([pooled, account_embed], dim=1)
         return self.output(combined)
+
+
+class _ContextAttentionBlock(nn.Module):
+    def __init__(
+        self,
+        d_model: int,
+        nhead: int,
+        dim_feedforward: int,
+        dropout: float,
+    ) -> None:
+        super().__init__()
+        self.attn = nn.MultiheadAttention(d_model, nhead, dropout=dropout, batch_first=True)
+        self.ln1 = nn.LayerNorm(d_model)
+        self.ff = nn.Sequential(
+            nn.Linear(d_model, dim_feedforward),
+            nn.GELU(),
+            nn.Dropout(dropout),
+            nn.Linear(dim_feedforward, d_model),
+        )
+        self.ln2 = nn.LayerNorm(d_model)
+
+    def forward(self, query: torch.Tensor, context: torch.Tensor) -> torch.Tensor:
+        attn_out, _ = self.attn(query, context, context)
+        query = self.ln1(query + attn_out)
+        ff_out = self.ff(query)
+        return self.ln2(query + ff_out)
