@@ -11,9 +11,10 @@ class ADXIndicator:
         self.alpha = 1.0 / window
 
     def compute(self, frame: pd.DataFrame) -> pd.DataFrame:
-        high = frame["high"].astype(float)
-        low = frame["low"].astype(float)
-        close = frame["close"].astype(float)
+        numeric = frame[["high", "low", "close"]].apply(pd.to_numeric, errors="coerce")
+        high = numeric["high"].astype(float)
+        low = numeric["low"].astype(float)
+        close = numeric["close"].astype(float)
 
         up_move = high.diff().fillna(0.0).astype(float)
         down_move = (low.shift(1) - low).fillna(0.0).astype(float)
@@ -33,11 +34,15 @@ class ADXIndicator:
 
         atr = true_range.fillna(0.0).astype(float).ewm(alpha=self.alpha, adjust=False).mean()
         atr_safe = atr.replace(0, pd.NA)
-        plus_di = 100 * (plus_dm.fillna(0.0).ewm(alpha=self.alpha, adjust=False).mean() / atr_safe)
-        minus_di = 100 * (minus_dm.fillna(0.0).ewm(alpha=self.alpha, adjust=False).mean() / atr_safe)
+        plus_di = 100 * (
+            plus_dm.fillna(0.0).astype(float).ewm(alpha=self.alpha, adjust=False).mean() / atr_safe
+        )
+        minus_di = 100 * (
+            minus_dm.fillna(0.0).astype(float).ewm(alpha=self.alpha, adjust=False).mean() / atr_safe
+        )
 
         dx = (plus_di - minus_di).abs() / (plus_di + minus_di).replace(0, pd.NA)
-        dx *= 100
+        dx = dx.fillna(0.0).astype(float) * 100.0
         adx = dx.ewm(alpha=self.alpha, adjust=False).mean()
 
         return pd.DataFrame({self.column_name: adx.astype(float)})
