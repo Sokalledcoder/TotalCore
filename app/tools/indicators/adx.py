@@ -42,7 +42,7 @@ class ADXIndicator:
         )
 
         dx = (plus_di - minus_di).abs() / (plus_di + minus_di).replace(0, pd.NA)
-        dx = dx.fillna(0.0).astype(float) * 100.0
+        dx = dx.fillna(0.0).infer_objects(copy=False).astype(float) * 100.0
         adx = dx.ewm(alpha=self.alpha, adjust=False).mean()
 
         return pd.DataFrame({self.column_name: adx.astype(float)})
