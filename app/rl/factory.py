@@ -7,8 +7,7 @@ from typing import Callable
 
 from gymnasium.wrappers import TimeLimit
 from stable_baselines3.common.monitor import Monitor
-from stable_baselines3.common.vec_env import DummyVecEnv, SubprocVecEnv, VecNormalize
-from stable_baselines3.common.vec_env.base import VecEnv
+from stable_baselines3.common.vec_env import DummyVecEnv, SubprocVecEnv, VecEnv, VecNormalize
 
 from .config import EnvConfig
 from .env import TradeEnvironment
