@@ -2,7 +2,7 @@
 
 This prototype replaces the MLP policy backbone with a lightweight transformer encoder:
 
-- Each 64×N market window is linearly projected to `d_model=384`, positional encodings are added, and the sequence is passed through 6 encoder blocks (8 heads, FF dim 1536) plus two stacked context-attention blocks that re-attend the pooled representation over the sequence.
+- Each 64×N market window is linearly projected to `d_model=300`, positional encodings are added, and the sequence is passed through 4 encoder blocks (6 heads, FF dim 1536) plus two stacked context-attention blocks that re-attend the pooled representation over the sequence.
 - A learnable CLS token pools the sequence output, which is concatenated with a projected account vector and fed through a linear head (512-dim features) for the actor/critic.
 - The extractor lives at `app/rl/policies/transformer.py` and is plugged into SB3 via `policy_kwargs` in `configs/train/ppo_gpu_transformer.json`.
 

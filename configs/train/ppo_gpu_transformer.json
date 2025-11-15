@@ -32,14 +32,14 @@
     "policy_kwargs": {
       "features_extractor_class": "app.rl.policies.transformer.TransformerFeatureExtractor",
       "features_extractor_kwargs": {
-        "d_model": 384,
-        "nhead": 8,
-        "num_layers": 6,
+        "d_model": 300,
+        "nhead": 6,
+        "num_layers": 4,
         "dim_feedforward": 1536,
         "dropout": 0.1,
         "features_dim": 768,
         "context_attention_layers": 2,
-        "context_attention_heads": 8,
+        "context_attention_heads": 6,
         "context_ff_mult": 4
       }
     }

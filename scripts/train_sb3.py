@@ -37,6 +37,20 @@ def _import_from_string(path: str):
     return getattr(module, attr)
 
 
+def _serialize_classes(payload: dict) -> None:
+    def _sanitize(element):
+        if isinstance(element, dict):
+            return {key: _sanitize(value) for key, value in element.items()}
+        if isinstance(element, list):
+            return [_sanitize(item) for item in element]
+        if isinstance(element, type):
+            return f"{element.__module__}.{element.__name__}"
+        return element
+
+    for key, value in list(payload.items()):
+        payload[key] = _sanitize(value)
+
+
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--config", help="EnvConfig JSON path (override or fallback)")
@@ -166,6 +180,7 @@ def main() -> None:
         "eval_metrics": eval_metrics,
         "vecnormalize_path": str(vecnormalize_path) if vecnormalize_path else None,
     }
+    _serialize_classes(metadata)
     meta_path = Path(f"{train_cfg.save_path}_meta.json")
     meta_path.parent.mkdir(parents=True, exist_ok=True)
     meta_path.write_text(json.dumps(metadata, indent=2))
