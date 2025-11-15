@@ -20,6 +20,23 @@ ALGORITHMS = {
 }
 
 
+def _resolve_policy_classes(algo_kwargs: dict) -> None:
+    policy_kwargs = algo_kwargs.get("policy_kwargs")
+    if not isinstance(policy_kwargs, dict):
+        return
+    extractor_path = policy_kwargs.get("features_extractor_class")
+    if isinstance(extractor_path, str):
+        policy_kwargs["features_extractor_class"] = _import_from_string(extractor_path)
+
+
+def _import_from_string(path: str):
+    module_name, _, attr = path.rpartition(".")
+    if not module_name:
+        raise ValueError(f"Invalid import path: {path}")
+    module = import_module(module_name)
+    return getattr(module, attr)
+
+
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--config", help="EnvConfig JSON path (override or fallback)")
@@ -156,20 +173,3 @@ def main() -> None:
 
 if __name__ == "__main__":
     main()
-
-
-def _resolve_policy_classes(algo_kwargs: dict) -> None:
-    policy_kwargs = algo_kwargs.get("policy_kwargs")
-    if not isinstance(policy_kwargs, dict):
-        return
-    extractor_path = policy_kwargs.get("features_extractor_class")
-    if isinstance(extractor_path, str):
-        policy_kwargs["features_extractor_class"] = _import_from_string(extractor_path)
-
-
-def _import_from_string(path: str):
-    module_name, _, attr = path.rpartition(".")
-    if not module_name:
-        raise ValueError(f"Invalid import path: {path}")
-    module = import_module(module_name)
-    return getattr(module, attr)
