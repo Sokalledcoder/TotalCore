@@ -1,0 +1,44 @@
+{
+  "env_config_path": "configs/env/btcusd_1m_risk_based.json",
+  "algorithm": "ppo",
+  "total_timesteps": 900000,
+  "seed": 404,
+  "eval_episodes": 3,
+  "num_envs": 8,
+  "save_path": "models/ppo_gpu_transformer",
+  "log_dir": "runs/tensorboard/ppo_gpu_transformer",
+  "progress_bar": true,
+  "normalize_advantage": true,
+  "clip_range_vf": 0.2,
+  "ent_coef": 0.01,
+  "vf_coef": 0.5,
+  "max_grad_norm": 0.6,
+  "vecnormalize": {
+    "enabled": true,
+    "norm_obs": true,
+    "norm_reward": false,
+    "clip_obs": 5.0,
+    "clip_reward": 5.0,
+    "gamma": 0.99
+  },
+  "algo_kwargs": {
+    "learning_rate": 0.00015,
+    "n_steps": 4096,
+    "batch_size": 2048,
+    "gamma": 0.995,
+    "gae_lambda": 0.92,
+    "clip_range": 0.2,
+    "device": "cuda",
+    "policy_kwargs": {
+      "features_extractor_class": "app.rl.policies.transformer.TransformerFeatureExtractor",
+      "features_extractor_kwargs": {
+        "d_model": 256,
+        "nhead": 4,
+        "num_layers": 3,
+        "dim_feedforward": 768,
+        "dropout": 0.1,
+        "features_dim": 512
+      }
+    }
+  }
+}
