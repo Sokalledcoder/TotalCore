@@ -27,3 +27,6 @@ frontend/node_modules/
 # Tooling
 .pytest_cache/
 .DS_Store
+
+# Local S3 mirror
+VolumeCore_latest/
