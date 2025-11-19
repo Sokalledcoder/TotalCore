@@ -343,6 +343,36 @@ table.clickable tr.selected td {
   grid-column: 1 / -1;
 }
 
+.action-controls label {
+  margin-right: 0.2rem;
+}
+
+.action-controls select {
+  min-width: 110px;
+}
+
+.action-stats-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 1rem;
+  margin-top: 1rem;
+}
+
+.table-wrapper {
+  overflow-x: auto;
+  margin-top: 1rem;
+}
+
+#actionSample th,
+#actionSample td {
+  font-size: 0.85rem;
+  white-space: nowrap;
+}
+
+#actionSample td {
+  font-family: 'JetBrains Mono', 'SFMono-Regular', Menlo, monospace;
+}
+
 .detail-card .label {
   margin: 0;
   text-transform: uppercase;

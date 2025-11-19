@@ -7,9 +7,11 @@ import sys
 import uuid
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, Sequence
 
-from fastapi import BackgroundTasks, FastAPI, HTTPException
+import numpy as np
+import pandas as pd
+from fastapi import BackgroundTasks, FastAPI, HTTPException, Query
 from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
 
@@ -24,6 +26,9 @@ from app.models import (
     ExperimentRunSummary,
     JobAction,
     JobStatus,
+    RunActionPoint,
+    RunActionResponse,
+    RunActionSeries,
 )
 from app.rl.datasets import load_manifest
 from app.rl.training_config import load_training_config
@@ -35,6 +40,45 @@ logger = logging.getLogger(__name__)
 REPO_ROOT = Path(__file__).resolve().parents[1]
 WORK_DIR = REPO_ROOT / "tmp" / "experiment_jobs"
 RUNS_ROOT = REPO_ROOT / "runs" / "experiments"
+
+ACTION_METRIC_LABELS = {
+    "equity": "Equity",
+    "cash": "Cash",
+    "position": "Position",
+    "drawdown": "Drawdown",
+    "episode_pnl_usd": "Episode PnL",
+    "last_price": "Last Price",
+    "decision_direction": "Decision Direction",
+    "decision_size_fraction": "Size Fraction",
+    "target_position": "Target Position",
+}
+ACTION_BASE_COLUMNS = {
+    "global_step",
+    "env_index",
+    "episode_step",
+    "equity",
+    "cash",
+    "position",
+    "drawdown",
+    "episode_pnl_usd",
+    "last_price",
+}
+ACTION_SAMPLE_COLUMNS = [
+    "global_step",
+    "env_index",
+    "episode_step",
+    "decision_direction",
+    "decision_size_fraction",
+    "target_position",
+    "cash",
+    "position",
+    "equity",
+    "drawdown",
+    "episode_pnl_usd",
+    "last_price",
+]
+ACTION_DEFAULT_METRICS = ("equity",)
+ACTION_MAX_POINTS = 5000
 
 app = FastAPI(title="TradeCore Data Service")
 store = JobStore()
@@ -156,6 +200,114 @@ def get_experiment_details(limit: int = 30):
         "runs": [run.model_dump(mode="json") for run in runs],
         "jobs": jobs_payload,
     }
+
+
+@app.get("/api/run-actions/{run_name}", response_model=RunActionResponse)
+def get_run_actions(
+    run_name: str,
+    env_index: Optional[int] = None,
+    metrics: Optional[List[str]] = Query(None),
+    max_points: int = 1500,
+):
+    if not metrics:
+        metrics = list(ACTION_DEFAULT_METRICS)
+    metrics = list(dict.fromkeys(metrics))
+    unknown = [metric for metric in metrics if metric not in ACTION_METRIC_LABELS]
+    if unknown:
+        raise HTTPException(status_code=400, detail=f"Unsupported metrics requested: {', '.join(unknown)}")
+    max_points = max(100, min(max_points, ACTION_MAX_POINTS))
+
+    run_path = RUNS_ROOT / run_name
+    if not run_path.exists():
+        raise HTTPException(status_code=404, detail="Run not found")
+    experiment_path = run_path / "experiment.json"
+    if not experiment_path.exists():
+        raise HTTPException(status_code=404, detail="Run metadata missing experiment.json")
+    try:
+        experiment = json.loads(experiment_path.read_text())
+    except json.JSONDecodeError as exc:  # pragma: no cover - extremely rare
+        raise HTTPException(status_code=500, detail="Experiment metadata is corrupted") from exc
+
+    train_meta = experiment.get("train_meta", {})
+    save_path = train_meta.get("save_path")
+    if not save_path:
+        raise HTTPException(status_code=400, detail="Run metadata missing save_path; cannot resolve action log")
+    action_candidates = _action_log_candidates(save_path)
+    action_csv = next((candidate for candidate in action_candidates if candidate.exists()), action_candidates[0])
+    if not action_csv.exists():
+        raise HTTPException(
+            status_code=404,
+            detail=f"Action log not found. Checked: {', '.join(str(path) for path in action_candidates)}",
+        )
+
+    available_columns = _read_action_columns(action_csv)
+    desired_columns = set(ACTION_BASE_COLUMNS).union(ACTION_SAMPLE_COLUMNS).union(metrics)
+    usecols = [col for col in available_columns if col in desired_columns]
+    if "global_step" not in usecols or "env_index" not in usecols:
+        raise HTTPException(status_code=400, detail="Action log missing required global_step/env_index columns")
+
+    df_all = pd.read_csv(action_csv, usecols=usecols)
+    total_rows = int(len(df_all))
+    env_count = int(df_all["env_index"].max()) + 1 if total_rows else 0
+    if env_index is not None:
+        if env_index < 0 or (env_count and env_index >= env_count):
+            raise HTTPException(status_code=400, detail=f"Invalid env_index {env_index}; env_count={env_count}")
+        df = df_all[df_all["env_index"] == env_index].copy()
+    else:
+        df = df_all.copy()
+    filtered_rows = int(len(df))
+    df.sort_values("global_step", inplace=True)
+
+    global_min = int(df["global_step"].min()) if filtered_rows else None
+    global_max = int(df["global_step"].max()) if filtered_rows else None
+
+    series_payload: Dict[str, RunActionSeries] = {}
+    for metric in metrics:
+        if metric not in df.columns:
+            continue
+        metric_frame = df[["global_step", metric]].dropna()
+        if metric_frame.empty:
+            series_payload[metric] = RunActionSeries(metric=metric, label=ACTION_METRIC_LABELS.get(metric, metric))
+            continue
+        stats_series = metric_frame[metric]
+        downsampled = _downsample_frame(metric_frame, max_points)
+        points = [
+            RunActionPoint(step=int(row["global_step"]), value=float(row[metric]))
+            for _, row in downsampled.iterrows()
+        ]
+        series_payload[metric] = RunActionSeries(
+            metric=metric,
+            label=ACTION_METRIC_LABELS.get(metric, metric),
+            min=float(stats_series.min()),
+            max=float(stats_series.max()),
+            mean=float(stats_series.mean()),
+            start=float(stats_series.iloc[0]),
+            end=float(stats_series.iloc[-1]),
+            last=float(stats_series.iloc[-1]),
+            points=points,
+        )
+
+    sample_cols = [col for col in ACTION_SAMPLE_COLUMNS if col in df.columns]
+    sample_rows: List[Dict[str, Any]] = []
+    if sample_cols and filtered_rows:
+        sample_rows = [_clean_record(row) for row in df.tail(20)[sample_cols].to_dict(orient="records")]
+
+    available_metrics = [metric for metric in ACTION_METRIC_LABELS if metric in available_columns]
+
+    return RunActionResponse(
+        run_name=run_name,
+        env_index=env_index,
+        action_log_path=_relativize_path(action_csv),
+        total_rows=total_rows,
+        filtered_rows=filtered_rows,
+        env_count=env_count,
+        available_metrics=available_metrics,
+        columns=available_columns,
+        global_step_min=global_min,
+        global_step_max=global_max,
+        series=series_payload,
+        sample_rows=sample_rows,
+    )
 
 
 @app.get("/api/experiment-jobs", response_model=List[ExperimentJob])
@@ -457,6 +609,57 @@ def _scan_dataset_manifests() -> List[Dict[str, Any]]:
             }
         )
     return entries
+
+
+def _action_log_candidates(save_path: str | Path) -> List[Path]:
+    model_path = _coerce_repo_path(save_path)
+    candidates = [model_path.with_name(f"{model_path.name}_actions.csv")]
+    try:
+        relative = model_path.relative_to(REPO_ROOT)
+        volume_root = REPO_ROOT / "VolumeCore_latest"
+        volume_model = volume_root / relative
+        candidates.append(volume_model.with_name(f"{volume_model.name}_actions.csv"))
+    except ValueError:
+        pass
+    return candidates
+
+
+def _relativize_path(path: Path) -> str:
+    try:
+        return str(path.relative_to(REPO_ROOT))
+    except ValueError:
+        return str(path)
+
+
+def _read_action_columns(path: Path) -> List[str]:
+    header = pd.read_csv(path, nrows=0)
+    return list(header.columns)
+
+
+def _downsample_frame(frame: pd.DataFrame, max_points: int) -> pd.DataFrame:
+    if len(frame) <= max_points:
+        return frame
+    indices = np.linspace(0, len(frame) - 1, max_points, dtype=int)
+    return frame.iloc[indices]
+
+
+def _clean_value(value: Any) -> Any:
+    if pd.isna(value):
+        return None
+    if isinstance(value, (np.generic,)):
+        return value.item()
+    return value
+
+
+def _clean_record(record: Dict[str, Any]) -> Dict[str, Any]:
+    return {key: _clean_value(value) for key, value in record.items()}
+
+
+def _coerce_repo_path(path_like: str | Path) -> Path:
+    candidate = Path(path_like)
+    if not candidate.is_absolute():
+        return (REPO_ROOT / candidate).resolve()
+    return candidate.resolve()
 
 
 def _resolve_repo_path(value: str, expected_prefix: Optional[str] = None) -> Path:

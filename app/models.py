@@ -140,3 +140,35 @@ class ExperimentRunSummary(BaseModel):
     tag: str
     train_meta: Dict[str, Any] = Field(default_factory=dict)
     eval_summary: Dict[str, Any] = Field(default_factory=dict)
+
+
+class RunActionPoint(BaseModel):
+    step: int
+    value: float
+
+
+class RunActionSeries(BaseModel):
+    metric: str
+    label: str
+    min: Optional[float] = None
+    max: Optional[float] = None
+    mean: Optional[float] = None
+    start: Optional[float] = None
+    end: Optional[float] = None
+    last: Optional[float] = None
+    points: List[RunActionPoint] = Field(default_factory=list)
+
+
+class RunActionResponse(BaseModel):
+    run_name: str
+    env_index: Optional[int]
+    action_log_path: str
+    total_rows: int
+    filtered_rows: int
+    env_count: int
+    available_metrics: List[str]
+    columns: List[str]
+    global_step_min: Optional[int]
+    global_step_max: Optional[int]
+    series: Dict[str, RunActionSeries] = Field(default_factory=dict)
+    sample_rows: List[Dict[str, Any]] = Field(default_factory=list)

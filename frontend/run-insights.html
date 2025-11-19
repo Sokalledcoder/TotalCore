@@ -162,6 +162,78 @@
         <pre id="detailOverrides">{}</pre>
       </div>
     </section>
+
+    <section class="panel" id="actionsPanel" hidden>
+      <div class="panel-header">
+        <h2>Action Trace</h2>
+        <div class="panel-actions action-controls">
+          <label for="actionMetric">Metric</label>
+          <select id="actionMetric">
+            <option value="equity" selected>Equity</option>
+          </select>
+          <label for="actionEnv">Env</label>
+          <select id="actionEnv">
+            <option value="all" selected>All</option>
+          </select>
+          <label for="actionPoints">Points</label>
+          <select id="actionPoints">
+            <option value="250">250</option>
+            <option value="500">500</option>
+            <option value="1000">1000</option>
+            <option value="1500" selected>1500</option>
+            <option value="2000">2000</option>
+          </select>
+        </div>
+      </div>
+      <p class="hint" id="actionSummary">Select a run to inspect per-step equity, cash, and actions.</p>
+      <canvas id="actionChart" height="140"></canvas>
+      <div class="action-stats-grid">
+        <div class="detail-card">
+          <p class="label">Start</p>
+          <p class="value" id="actionStatStart">—</p>
+        </div>
+        <div class="detail-card">
+          <p class="label">End</p>
+          <p class="value" id="actionStatEnd">—</p>
+        </div>
+        <div class="detail-card">
+          <p class="label">Min / Max</p>
+          <p class="value" id="actionStatMinMax">—</p>
+        </div>
+        <div class="detail-card">
+          <p class="label">Mean</p>
+          <p class="value" id="actionStatMean">—</p>
+        </div>
+        <div class="detail-card">
+          <p class="label">Rows</p>
+          <p class="value" id="actionStatRows">—</p>
+        </div>
+        <div class="detail-card">
+          <p class="label">Action Log</p>
+          <p class="mono" id="actionLogPath">—</p>
+        </div>
+      </div>
+      <div class="table-wrapper">
+        <table id="actionSample">
+          <thead>
+            <tr>
+              <th>Step</th>
+              <th>Env</th>
+              <th>Episode Step</th>
+              <th>Dir</th>
+              <th>Size</th>
+              <th>Target Pos</th>
+              <th>Cash</th>
+              <th>Position</th>
+              <th>Equity</th>
+              <th>Drawdown</th>
+              <th>Episode PnL</th>
+            </tr>
+          </thead>
+          <tbody></tbody>
+        </table>
+      </div>
+    </section>
   </main>
   <script src="/static/run-insights.js" type="module"></script>
 </body>

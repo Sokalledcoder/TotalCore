@@ -27,6 +27,61 @@ const detailEnv = document.getElementById('detailEnv');
 const detailTrain = document.getElementById('detailTrain');
 const detailRunDir = document.getElementById('detailRunDir');
 const detailOverrides = document.getElementById('detailOverrides');
+const detailFps = document.getElementById('detailFps');
+const actionsPanel = document.getElementById('actionsPanel');
+const actionMetricSelect = document.getElementById('actionMetric');
+const actionEnvSelect = document.getElementById('actionEnv');
+const actionPointsSelect = document.getElementById('actionPoints');
+const actionChartCanvas = document.getElementById('actionChart');
+const actionSummaryEl = document.getElementById('actionSummary');
+const actionStatStart = document.getElementById('actionStatStart');
+const actionStatEnd = document.getElementById('actionStatEnd');
+const actionStatMinMax = document.getElementById('actionStatMinMax');
+const actionStatMean = document.getElementById('actionStatMean');
+const actionStatRows = document.getElementById('actionStatRows');
+const actionLogPathEl = document.getElementById('actionLogPath');
+const actionSampleBody = document.querySelector('#actionSample tbody');
+
+const ACTION_METRICS = [
+  'equity',
+  'cash',
+  'position',
+  'drawdown',
+  'episode_pnl_usd',
+  'last_price',
+  'decision_direction',
+  'decision_size_fraction',
+  'target_position',
+];
+const ACTION_METRIC_LABELS = {
+  equity: 'Equity ($)',
+  cash: 'Cash ($)',
+  position: 'Position',
+  drawdown: 'Drawdown %',
+  episode_pnl_usd: 'Episode PnL ($)',
+  last_price: 'Last Price',
+  decision_direction: 'Decision Direction',
+  decision_size_fraction: 'Size Fraction',
+  target_position: 'Target Position',
+};
+const ACTION_SAMPLE_FIELDS = [
+  'global_step',
+  'env_index',
+  'episode_step',
+  'decision_direction',
+  'decision_size_fraction',
+  'target_position',
+  'cash',
+  'position',
+  'equity',
+  'drawdown',
+  'episode_pnl_usd',
+];
+const currencyFormatter = new Intl.NumberFormat(undefined, {
+  style: 'currency',
+  currency: 'USD',
+  maximumFractionDigits: 2,
+});
 
 let rewardChart;
 let throughputChart;
@@ -34,10 +89,28 @@ let scatterChart;
 let currentRuns = [];
 let jobLookup = new Map();
 let selectedRunId = null;
+let actionChart;
+const actionCache = new Map();
+let currentActionData = null;
+let currentActionMetric = 'equity';
+let currentActionEnv = 'all';
+let currentActionPoints = 1500;
 
 refreshBtn?.addEventListener('click', () => loadInsights());
 rewardMetricSelect?.addEventListener('change', () => renderCharts(currentRuns));
 throughputMetricSelect?.addEventListener('change', () => renderCharts(currentRuns));
+actionMetricSelect?.addEventListener('change', () => {
+  currentActionMetric = actionMetricSelect.value;
+  renderActionPanel();
+});
+actionEnvSelect?.addEventListener('change', () => {
+  currentActionEnv = actionEnvSelect.value;
+  loadActionTrace(true);
+});
+actionPointsSelect?.addEventListener('change', () => {
+  currentActionPoints = Number(actionPointsSelect.value) || 1500;
+  loadActionTrace(true);
+});
 
 loadInsights();
 
@@ -284,14 +357,28 @@ function renderCharts(runs) {
   });
 }
 
-function formatNumber(value) {
+function formatMetricValue(value, metric) {
   if (value === null || value === undefined || Number.isNaN(value)) return '—';
-  return Number(value).toFixed(3);
+  if (metric === 'drawdown') return formatPercent(value);
+  if (metric === 'equity' || metric === 'cash' || metric === 'episode_pnl_usd' || metric === 'last_price') {
+    return formatCurrency(value);
+  }
+  return formatNumber(value);
+}
+
+function formatNumber(value, maxDigits = 3) {
+  if (value === null || value === undefined || Number.isNaN(value)) return '—';
+  return Number(value).toLocaleString(undefined, { maximumFractionDigits: maxDigits });
 }
 
 function formatCurrency(value) {
   if (value === null || value === undefined || Number.isNaN(value)) return '—';
-  return `$${Number(value).toFixed(2)}`;
+  return currencyFormatter.format(Number(value));
+}
+
+function formatPercent(value) {
+  if (value === null || value === undefined || Number.isNaN(value)) return '—';
+  return `${(Number(value) * 100).toFixed(2)}%`;
 }
 
 function formatDate(value) {
@@ -349,6 +436,12 @@ function selectRun(run) {
   updateDetailPanel(run, job);
   updateSummary(currentRuns, selectedRunId);
   renderCharts(currentRuns);
+  if (actionEnvSelect) {
+    currentActionEnv = 'all';
+    actionEnvSelect.value = 'all';
+  }
+  actionMetricSelect && (currentActionMetric = actionMetricSelect.value || 'equity');
+  loadActionTrace(true);
 }
 
 function updateDetailPanel(run, job) {
@@ -388,6 +481,193 @@ function clearDetailPanel() {
   detailPanel.hidden = true;
   selectedRunId = null;
   runsTableBody.querySelectorAll('tr').forEach((row) => row.classList.remove('selected'));
+  if (actionsPanel) {
+    actionsPanel.hidden = true;
+  }
+  currentActionData = null;
+}
+
+async function loadActionTrace(force = false) {
+  if (!actionsPanel) return;
+  if (!selectedRunId) {
+    actionsPanel.hidden = true;
+    return;
+  }
+  const envValue = currentActionEnv ?? 'all';
+  const points = Number(currentActionPoints) || 1500;
+  const cacheKey = `${selectedRunId}::${envValue}::${points}`;
+  if (!force && actionCache.has(cacheKey)) {
+    currentActionData = actionCache.get(cacheKey);
+    syncActionSelectors(currentActionData, envValue);
+    renderActionPanel();
+    return;
+  }
+  actionsPanel.hidden = false;
+  actionSummaryEl.textContent = 'Loading action log…';
+  const params = new URLSearchParams();
+  params.set('max_points', points);
+  ACTION_METRICS.forEach((metric) => params.append('metrics', metric));
+  if (envValue !== 'all') {
+    params.set('env_index', envValue);
+  }
+  try {
+    const res = await fetch(`/api/run-actions/${encodeURIComponent(selectedRunId)}?${params.toString()}`);
+    if (!res.ok) throw new Error('Request failed');
+    const payload = await res.json();
+    actionCache.set(cacheKey, payload);
+    currentActionData = payload;
+    syncActionSelectors(payload, envValue);
+    renderActionPanel();
+  } catch (err) {
+    console.error('Failed to load action log', err);
+    currentActionData = null;
+    actionSummaryEl.textContent = 'Unable to load action log for this run.';
+    renderActionPanel();
+  }
+}
+
+function syncActionSelectors(payload, envValue) {
+  if (actionEnvSelect) {
+    const nextOptions = ['all'];
+    const envCount = payload?.env_count ?? 0;
+    for (let i = 0; i < envCount; i += 1) {
+      nextOptions.push(String(i));
+    }
+    actionEnvSelect.innerHTML = '';
+    nextOptions.forEach((value) => {
+      const option = document.createElement('option');
+      option.value = value;
+      option.textContent = value === 'all' ? 'All' : `Env ${value}`;
+      if (value === envValue) option.selected = true;
+      actionEnvSelect.appendChild(option);
+    });
+  }
+  if (actionPointsSelect) {
+    actionPointsSelect.value = String(Number(currentActionPoints) || 1500);
+  }
+  if (actionMetricSelect && payload) {
+    const metrics = (payload.available_metrics || []).filter((metric) => payload.series?.[metric]);
+    actionMetricSelect.innerHTML = '';
+    if (!metrics.length) {
+      const opt = document.createElement('option');
+      opt.value = '';
+      opt.textContent = 'No metrics available';
+      actionMetricSelect.appendChild(opt);
+      currentActionMetric = '';
+      return;
+    }
+    if (!metrics.includes(currentActionMetric)) {
+      currentActionMetric = metrics[0];
+    }
+    metrics.forEach((metric) => {
+      const option = document.createElement('option');
+      option.value = metric;
+      option.textContent = ACTION_METRIC_LABELS[metric] || metric;
+      if (metric === currentActionMetric) option.selected = true;
+      actionMetricSelect.appendChild(option);
+    });
+  }
+}
+
+function renderActionPanel() {
+  if (!actionsPanel) return;
+  if (!currentActionData || !currentActionMetric) {
+    actionsPanel.hidden = !selectedRunId;
+    if (actionChart) {
+      actionChart.destroy();
+      actionChart = null;
+    }
+    return;
+  }
+  actionsPanel.hidden = false;
+  const series = currentActionData.series?.[currentActionMetric];
+  const points = series?.points ?? [];
+  const metricLabel = ACTION_METRIC_LABELS[currentActionMetric] || currentActionMetric;
+  if (!points.length) {
+    if (actionChart) {
+      actionChart.destroy();
+      actionChart = null;
+    }
+    actionSummaryEl.textContent = `No ${metricLabel} samples for this selection.`;
+  } else if (actionChartCanvas) {
+    actionSummaryEl.textContent = `${currentActionData.filtered_rows?.toLocaleString?.() || currentActionData.filtered_rows} rows from ${currentActionData.action_log_path}`;
+    const labels = points.map((point) => point.step);
+    const values = points.map((point) => point.value);
+    if (actionChart) actionChart.destroy();
+    actionChart = new Chart(actionChartCanvas, {
+      type: 'line',
+      data: {
+        labels,
+        datasets: [
+          {
+            label: metricLabel,
+            data: values,
+            borderColor: metricColor(currentActionMetric),
+            backgroundColor: 'rgba(92,201,255,0.2)',
+            pointRadius: 0,
+            tension: 0.15,
+          },
+        ],
+      },
+      options: {
+        responsive: true,
+        plugins: { legend: { display: false } },
+        scales: {
+          x: { title: { display: true, text: 'Global Step' } },
+          y: { title: { display: true, text: metricLabel } },
+        },
+      },
+    });
+  }
+  actionStatStart.textContent = formatMetricValue(series?.start, currentActionMetric);
+  actionStatEnd.textContent = formatMetricValue(series?.end, currentActionMetric);
+  const minText = formatMetricValue(series?.min, currentActionMetric);
+  const maxText = formatMetricValue(series?.max, currentActionMetric);
+  actionStatMinMax.textContent = series ? `${minText} / ${maxText}` : '—';
+  actionStatMean.textContent = formatMetricValue(series?.mean, currentActionMetric);
+  const filtered = currentActionData.filtered_rows ?? 0;
+  const total = currentActionData.total_rows ?? filtered;
+  actionStatRows.textContent = `${filtered.toLocaleString()} / ${total.toLocaleString()} rows`;
+  actionLogPathEl.textContent = currentActionData.action_log_path || '—';
+  renderActionSampleTable(currentActionData.sample_rows || []);
+}
+
+function renderActionSampleTable(rows) {
+  if (!actionSampleBody) return;
+  actionSampleBody.innerHTML = '';
+  if (!rows.length) {
+    const emptyRow = document.createElement('tr');
+    emptyRow.innerHTML = `<td colspan="11">No sample rows available.</td>`;
+    actionSampleBody.appendChild(emptyRow);
+    return;
+  }
+  rows.forEach((row) => {
+    const tr = document.createElement('tr');
+    tr.innerHTML = ACTION_SAMPLE_FIELDS.map((field) => `<td>${formatSampleField(field, row[field])}</td>`).join('');
+    actionSampleBody.appendChild(tr);
+  });
+}
+
+function formatSampleField(field, value) {
+  if (value === null || value === undefined || Number.isNaN(value)) return '—';
+  if (field === 'cash' || field === 'equity' || field === 'episode_pnl_usd') {
+    return formatCurrency(value);
+  }
+  if (field === 'drawdown') {
+    return formatPercent(value);
+  }
+  if (typeof value === 'number') {
+    return formatNumber(value);
+  }
+  return String(value);
+}
+
+function metricColor(metric) {
+  if (metric === 'equity' || metric === 'cash') return '#5cc9ff';
+  if (metric === 'drawdown') return '#ff8a5c';
+  if (metric === 'episode_pnl_usd') return '#ffd166';
+  if (metric === 'position' || metric === 'target_position') return '#a78bfa';
+  return '#90f48b';
 }
 
 function formatDuration(seconds) {
