@@ -1,0 +1,19 @@
+Future-CoT reminder (reference: handoff-session-7.md)
+
+Goal: Continue HMM Lab work without drifting. Read handoff-session-7.md first; it captures state, saved runs, profiles, scheduler, endpoints, and next steps. Do NOT jump into a plan until you clarify with the user. Stay grounded, no hype, be concise and humble.
+
+Key operating notes:
+- Backend: uvicorn/FASTAPI at http://localhost:8000; check pid (`ps -ef | grep uvicorn`). DuckDB locks while server runs; stop server before direct DB access.
+- Frontend: hmm-dashboard.html (JS v=5). Profiles dropdown controls modes (Legacy, Scaled, Scaled+Auto-K). No legacy checkbox.
+- Data/session: 1m Binance BTC/USDT base; aggregated TFs on the fly. Scheduler should ingest every 5m and on startup. Verify in server.log.
+- Saved runs are timestamped (exchange_symbol_timeframe_ts). Load Run should render immediately; prob card auto-refresh is separate (latest every ~15s). Probability card shows numeric latest probs.
+- Legacy look: Profile=Legacy, K=3, Auto-K off. Colors Bear/Chop/Bull.
+- Outstanding: confirm scheduler actually runs; add last-updated badge; consider new feature profiles (e.g., MA slopes + ATR) later; clean old non-ts models after verification; add degenerate-state warnings.
+
+Behavioral guardrails:
+- Don’t make a plan until you confer with the user about priorities.
+- No overhyped/marketing language; stay factual and terse.
+- Before editing, reread handoff-session-7.md and current `git status`.
+- If fetch/locks occur, check DuckDB lock (server may be running) before diagnosing.
+- Research first if needed; exit plan mode only after alignment with the user.
+
