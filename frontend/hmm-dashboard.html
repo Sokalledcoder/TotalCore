@@ -1,0 +1,164 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>HMM Regime Detection</title>
+  <link rel="stylesheet" href="/static/styles.css" />
+  <script src="https://cdn.plot.ly/plotly-2.27.0.min.js"></script>
+  <style>
+    .chart-container {
+      width: 100%;
+      height: 500px;
+      margin-bottom: 20px;
+    }
+    .prob-container {
+      width: 100%;
+      height: 320px;
+      margin-bottom: 20px;
+    }
+    .controls {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 12px;
+        align-items: center;
+        margin-bottom: 20px;
+    }
+    .stat-card {
+        background: rgba(255, 255, 255, 0.05);
+        padding: 10px;
+        border-radius: 4px;
+        margin-bottom: 10px;
+    }
+    .button-row { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 8px; }
+    .chip-btn {
+      padding: 6px 10px;
+      border-radius: 12px;
+      border: 1px solid #444;
+      background: #1f1f1f;
+      color: #ddd;
+      cursor: pointer;
+      font-size: 12px;
+    }
+    .chip-btn.active { border-color: #00cc66; color: #00cc66; }
+    .inline-note { font-size: 12px; color: #aaa; }
+  </style>
+</head>
+<body>
+  <nav class="top-nav">
+    <a href="/" class="logo">TradeCore</a>
+    <div class="nav-links">
+      <a href="/">Fetch History</a>
+      <a href="/control-panel">Control Panel</a>
+      <a href="/run-insights">Run Insights</a>
+      <a href="/hmm-dashboard" class="active">HMM Lab</a>
+    </div>
+  </nav>
+  <main>
+    <h1>HMM Regime Detection</h1>
+    <p class="subtitle">Train and monitor Hidden Markov Models for market regime classification.</p>
+    
+    <section class="panel">
+      <div class="controls">
+        <div class="field">
+            <label>Exchange</label>
+            <select id="exchange">
+                <option value="binance">Binance</option>
+                <option value="kraken">Kraken</option>
+            </select>
+        </div>
+        <div class="field">
+            <label>Symbol</label>
+            <select id="symbol">
+                <option value="BTC/USDT">BTC/USDT</option>
+                <option value="ETH/USDT">ETH/USDT</option>
+                <option value="BTC/USD">BTC/USD</option>
+            </select>
+        </div>
+        <div class="field">
+            <label>Timeframe</label>
+            <select id="timeframe">
+                <option value="1m">1m</option>
+                <option value="5m">5m</option>
+                <option value="15m">15m</option>
+                <option value="13m">13m</option>
+                <option value="30m">30m</option>
+                <option value="1h">1h</option>
+                <option value="4h">4h</option>
+                <option value="1d">1d</option>
+            </select>
+        </div>
+        <div class="field">
+            <label title="Number of hidden regimes the model will try to separate (more states = finer regimes, but risk of overfit)">States</label>
+            <input type="number" id="n_states" value="3" min="2" max="5" style="width: 60px;">
+        </div>
+        <div class="field" style="min-width:180px;">
+            <label>Profile</label>
+            <select id="profile">
+              <option value="legacy">Legacy (no scaling, full cov)</option>
+              <option value="scaled">Scaled (diag cov)</option>
+              <option value="scaled_autok">Scaled + Auto-K (diag)</option>
+            </select>
+        </div>
+        <div class="field" style="display:flex; flex-direction:column; gap:4px; min-width:140px;">
+            <label><input type="checkbox" id="autoK"> Auto K (2-4)</label>
+            <div style="display:flex; gap:6px; align-items:center;">
+              <label class="inline-note">Min</label>
+              <input type="number" id="k_min" value="2" min="2" max="6" style="width:60px;">
+              <label class="inline-note">Max</label>
+              <input type="number" id="k_max" value="4" min="3" max="8" style="width:60px;">
+            </div>
+        </div>
+        <div class="field">
+            <label title="Optional training window start">Start</label>
+            <input type="datetime-local" id="start_date" style="width: 190px;">
+        </div>
+        <div class="field">
+            <label title="Optional training window end">End</label>
+            <input type="datetime-local" id="end_date" style="width: 190px;">
+        </div>
+        <button id="trainBtn">Train Model</button>
+        <button id="refreshBtn" class="secondary">Refresh View</button>
+      </div>
+      <div class="controls" style="margin-top:0;">
+        <div class="field" style="min-width:240px;">
+            <label>Saved Runs</label>
+            <select id="savedRuns" style="min-width:240px;"></select>
+        </div>
+        <button id="loadRun" class="secondary">Load Run</button>
+        <button id="deleteRun" class="secondary">Delete Run</button>
+      </div>
+      <p class="subtitle" style="margin-top:8px;">Tip: more states = finer regime splits but higher overfit risk. Leave Start/End blank to train on all available history.</p>
+      <div id="statsPanel"></div>
+    </section>
+
+    <section class="panel">
+      <div style="display:flex; align-items:center; gap:12px; flex-wrap:wrap;">
+        <h2 style="margin:0;">Regime Analysis</h2>
+        <div class="button-row" id="tfRow" style="margin:0;">
+          <span class="inline-note">Quick TF:</span>
+          <button class="chip-btn" data-tf="1m">1m</button>
+          <button class="chip-btn" data-tf="5m">5m</button>
+          <button class="chip-btn" data-tf="15m">15m</button>
+          <button class="chip-btn" data-tf="30m">30m</button>
+          <button class="chip-btn" data-tf="1h">1h</button>
+          <button class="chip-btn" data-tf="4h">4h</button>
+          <button class="chip-btn" data-tf="1d">1d</button>
+        </div>
+        <div class="button-row" style="margin-left:auto;">
+          <div class="field" style="display:flex; align-items:center; gap:6px;">
+            <label class="inline-note">Candles</label>
+            <input type="number" id="candleLimit" value="1000" min="100" max="5000" style="width:80px;">
+          </div>
+          <label class="inline-note"><input type="checkbox" id="autoRefresh" style="margin-right:4px;">Auto-refresh price only (10s)</label>
+          <span id="lastPrice" class="inline-note"></span>
+        </div>
+      </div>
+      <div id="priceChart" class="chart-container"></div>
+      <div id="probChart" class="prob-container"></div>
+      <div id="probStats" class="stat-card" style="margin-top:10px;"></div>
+    </section>
+  </main>
+  <script src="/static/hmm-dashboard.js?v=5" type="module"></script>
+</body>
+</html>

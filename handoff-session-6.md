@@ -1,36 +1,67 @@
-# Handoff Session 6 — 2025-11-20
+# Handoff Report – Session 6 (TradeCore HMM Lab)
+Date: 2025-11-20 (current backend session)
 
-## Context
-- Repo: TradeCore (FastAPI backend + static frontend).
-- Last sync/push: commit 022f624 (ignored VolumeCore mirror); prior commits d4bdcb6 (action log API/UI) and b2dc043 (handoff session 5 + HMM research).
-- Local venv: `.venv` created and `pip install -e .` completed; backend running via `scripts/run_api.sh` on port 8000.
+## State of the System
+- Backend: FastAPI/uvicorn on http://localhost:8000. Check `ps -ef | grep uvicorn` for the active PID (last start while writing this: 2728756 then 2729957 then 2709906, current run: 2709906/2728756/2729957 sequence; most recent start shows 200 OK). DuckDB `tradecore.duckdb` is locked while the server runs.
+- Frontend: `frontend/hmm-dashboard.html` (JS cache-bust v=5). Profiles dropdown controls modes.
+- Data: 1m Binance BTC/USDT stored; higher timeframes are aggregated on the fly (5m/13m/15m/30m/1h/4h/1d).
+- Scheduler: On startup, catch-up ingest from last 1m to now; scheduled incremental ingest every 5 minutes for Binance BTC/USDT 1m. Need stable uptime to confirm “Incremental ingest completed” logs.
 
-## Recent Work
-- **Action analysis pipeline**: Added `/api/run-actions/{run_name}` to serve downsampled action CSVs with stats and samples; looks for logs in repo and `VolumeCore_latest`. Built new Pydantic models for series/points. Added helpers for path resolution, downsampling, and value cleaning.
-- **Frontend Run Insights**: Added Action Trace panel with metric/env/point selectors, Chart.js line plot, stats cards, and sample table. Improved number/currency formatting. UI now surfaces per-step equity/cash/position/drawdown, etc., from action logs.
-- **Artifacts pulled**: From VolumeCore bucket for run `20251115T150013Z_runpod-transformer-rtxpro`: `experiment.json`, `eval_summary.json`, `ppo_gpu_transformer_rtxpro.json`, model `ppo_gpu_transformer_rtxpro.zip`, `ppo_gpu_transformer_rtxpro_vecnormalize.pkl`, `ppo_gpu_transformer_rtxpro_actions.csv`, and meta json. Stored in `VolumeCore_latest/` and copied models into `models/` for convenience.
-- **Docs/notes**: Added `handoff-session-5.md` and `HMM RESEARCH V1` (research notes). Current handoff is session 6.
-- **Git hygiene**: Added `.gitignore` entry to exclude `VolumeCore_latest/` mirror.
+## Key Backend Changes
+- Model training/profiles:
+  - Legacy: full covariance, no scaling, exact K, fit on full window. Auto-K ignored.
+  - Scaled: z-scored features, diag covariance, strict K.
+  - Scaled+Auto-K: K search (2–4) with train/val split, BIC/val diagnostics.
+- Label mapping: K=3 → Bear/Chop/Bull; K=4 → Strong Bear/Bear/Chop/Bull; K>=5 adds Chop 1/2… then Bull/Strong Bull.
+- Persistence: models saved with timestamped IDs `exchange_symbol_timeframe_ts`. `/regime` returns {data, labels}; saved runs no longer overwrite.
+- `/api/hmm/regime`: supports model_id; safer OHLC join; bounds window when no dates on aggregated frames.
+- `/api/hmm/latest`: returns latest bar probs (uses persisted if available, otherwise computes from recent window).
+- `/api/price/latest`: lightweight last candle.
+- DB helpers: `get_market_data_for_timestamps`, `get_recent_market_data`.
+- Incremental ingest: `app/api.py` now uses APScheduler for 5-min ingest + startup catch-up.
 
-## Current State
-- Backend: running via `scripts/run_api.sh`; endpoints `/run-insights` (HTML) and `/api/run-actions/<run>` live.
-- Frontend: open `http://localhost:8000/run-insights` to view runs; Action Trace panel defaults to equity metric, env=all, 1500 points.
-- Data: Latest run directory mirrored at `VolumeCore_latest/runs/experiments/20251115T150013Z_runpod-transformer-rtxpro/`; models & vecnormalize at `models/` (tracked dir but git-ignored globally for patterns; these specific files remain untracked because of existing ignores).
-- Git status: clean except for `scripts/replay_policy.py` (pre-existing changes) and `server.log` (updated by uvicorn). `VolumeCore_latest/` is ignored.
+## Frontend Changes
+- Profiles dropdown (Legacy, Scaled, Scaled+Auto-K); legacy checkbox removed.
+- Saved Runs: timestamped entries; Load Run immediately loads charts (no extra refresh) with loading state.
+- Probability card under Regime Analysis shows numeric latest probs + timestamp; auto-refresh (15s) pulls `/api/hmm/latest`.
+- Timeframe chips; candle limit (default 1000); start/end pickers. Auto-refresh now refreshes probs only; charts remain static until Refresh View.
+- Color map cleaned for multi-state runs; labels preserved from backend response.
 
-## Open Items / Risks
-- `scripts/replay_policy.py` changes are still uncommitted—review before next push.
-- `server.log` modified by runtime; normally keep untracked.
-- Action API reads huge CSVs; downsampling caps at 5000 points server-side; consider server memory if larger logs appear.
-- Return percentage semantics: `mean_return_pct` in eval summaries is a ratio; UI multiplies by 100. Keep this convention consistent.
+## Feature/Model Pipeline (current)
+- Features: log return, rolling vol (14), volume z-score (28), ADX(14), RSI(14). Legacy uses raw; Scaled uses z-score.
+- HMM: hmmlearn.GaussianHMM; diag covariance (modern) or full (legacy); n_iter=100; random_state=42.
+- Diagnostics on train: k, loglik_train/val, BIC, state_counts, mode (legacy/modern).
 
-## Suggested Next Steps
-1) If keeping `scripts/replay_policy.py` edits, review/commit or stash. Otherwise, leave untouched.
-2) Run backend via `scripts/run_api.sh` and confirm Action Trace charts with `20251115T150013Z_runpod-transformer-rtxpro` using metrics equity/cash/position/drawdown.
-3) If adding new runs, ensure action CSVs land in `models/` (or VolumeCore mirror) with `_actions.csv` suffix so API auto-discovers them.
-4) Consider adding pagination/downsampling controls server-side for even larger traces; maybe stream via Arrow/Parquet later.
+## Known Issues / Watchpoints
+- DuckDB: single-writer; stop uvicorn to inspect DB (lock errors otherwise).
+- Scheduler: need to observe “Incremental ingest completed” after stable uptime; restarts interrupt it.
+- `/api/hmm/latest`: requires model_id or exchange/symbol/timeframe; bounded to ~400 buckets when aggregating.
+- Prob card updates only when the auto-refresh toggle is ON.
 
-## Quick Commands
-- Start API: `scripts/run_api.sh` (tailing `server.log`).
-- Open UI: `http://localhost:8000/run-insights`.
-- Fetch action data (example): `curl "http://localhost:8000/api/run-actions/20251115T150013Z_runpod-transformer-rtxpro?metrics=equity&metrics=cash&max_points=500"`.
+## Recommended Next Steps
+- Let the server run >5 minutes and watch `server.log` for ingest completion; otherwise kick off a manual catch-up.
+- Add “last updated” badge near the prob card.
+- Add feature-profile variants (e.g., MA slopes + ATR replacing RSI) without touching legacy.
+- Add degenerate-state warning in stats (state count <5%).
+- Clean up old non-timestamped model files (ts=0) after verifying needed runs.
+
+## How to Reproduce the “Good” Look
+- Profile: Legacy; States: 3; Auto-K OFF. Train; load the resulting timestamped run from Saved Runs. Colors: Bear/Chop/Bull.
+
+## Saved Runs Snapshot (from /api/hmm/models when checked)
+- binance_BTC-USDT_5m_1763610368
+- binance_BTC-USDT_15m_1763610031
+- binance_BTC-USDT_1h_1763609719
+- plus earlier 1h timestamped models and some old non-ts IDs (ts=0).
+
+## Quick Ops
+- Start backend: `bash scripts/run_api.sh`
+- Hard refresh dashboard (uses `hmm-dashboard.js?v=5`).
+- Load run: select in Saved Runs → Load Run (charts render; prob card updates). Auto-refresh toggle re-pulls probs every 15s.
+- Manual DB access: stop uvicorn first to avoid DuckDB lock.
+- Manual ingest (if scheduler not caught up): use HistoryIngestor with start=last_ts+1m to now.
+
+## Session Context
+- This report replaces the deleted “HMM RESEARCH V1” file; the new research doc is `HMM-RESEARCH-V1.md`.
+- Untracked/completed files staged: app/api.py, app/db.py, app/routers/hmm.py, app/services/hmm_engine.py, frontend/hmm-dashboard.html/.js, scripts/check_db.py/test_ingestion.py/verify_hmm.py, ccxt-binance.md, hmm-implementation-v1.md, walkthrough.md, HMM-RESEARCH-V1.md.
+- Unstaged/untracked: DuckDB files (`tradecore.duckdb`/wal) and `backend.log` (keep untracked). EOF

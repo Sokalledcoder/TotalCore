@@ -9,15 +9,19 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Sequence
 
+import asyncio
 import numpy as np
 import pandas as pd
 from fastapi import BackgroundTasks, FastAPI, HTTPException, Query
+import asyncio
+from apscheduler.schedulers.asyncio import AsyncIOScheduler
+from apscheduler.triggers.interval import IntervalTrigger
 from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
 
 from app.coverage import scan_coverage
 from app.experiment_store import ExperimentJobRecord, ExperimentStore
-from app.ingestion.kraken import KrakenHistoryIngestor
+from app.ingestion.fetcher import HistoryIngestor
 from app.models import (
     DataJob,
     DataJobCreate,
@@ -26,6 +30,7 @@ from app.models import (
     ExperimentRunSummary,
     JobAction,
     JobStatus,
+    JobOptions,
     RunActionPoint,
     RunActionResponse,
     RunActionSeries,
@@ -80,11 +85,90 @@ ACTION_SAMPLE_COLUMNS = [
 ACTION_DEFAULT_METRICS = ("equity",)
 ACTION_MAX_POINTS = 5000
 
+from app.routers.hmm import router as hmm_router
+
 app = FastAPI(title="TradeCore Data Service")
+app.include_router(hmm_router)
 store = JobStore()
-ingestor = KrakenHistoryIngestor(store)
+ingestor = HistoryIngestor(store)
 experiment_store = ExperimentStore()
 app.mount("/static", StaticFiles(directory="frontend"), name="static")
+
+# Scheduler for incremental ingestion
+scheduler = AsyncIOScheduler()
+
+
+def ingest_incremental():
+    try:
+        # Only binance BTC/USDT 1m for now
+        exchange = "binance"
+        symbol = "BTC/USDT"
+        timeframe = "1m"
+        # Find last timestamp in duckdb
+        from app.db import db as duck
+        df = duck.conn.execute(
+            """
+            SELECT max(timestamp) as last_ts
+            FROM market_data
+            WHERE exchange=? AND symbol=? AND timeframe=?
+            """,
+            [exchange, symbol, timeframe],
+        ).fetchone()
+        last_ts = df[0]
+        start_ts_ms = int(last_ts.timestamp() * 1000) + 60_000 if last_ts else None
+        end_ts_ms = int(datetime.now(timezone.utc).timestamp() * 1000)
+        job = DataJob(
+            id=str(uuid.uuid4()),
+            exchange=exchange,
+            symbol=symbol,
+            timeframe=timeframe,
+            start_timestamp=start_ts_ms,
+            end_timestamp=end_ts_ms,
+            status=JobStatus.queued,
+            progress=0.0,
+            created_at=datetime.now(timezone.utc),
+            updated_at=datetime.now(timezone.utc),
+            options=JobOptions(),
+            details={},
+            result={},
+        )
+        record = JobRecord(
+            id=job.id,
+            exchange=job.exchange,
+            symbol=job.symbol,
+            timeframe=job.timeframe,
+            start_timestamp=job.start_timestamp,
+            end_timestamp=job.end_timestamp,
+            status=job.status,
+            progress=job.progress,
+            created_at=job.created_at,
+            updated_at=job.updated_at,
+            options=job.options,
+            details=job.details,
+            result=job.result,
+        )
+        store.create_job(record)
+        ingestor.ingest(job)
+        logger.info("Incremental ingest completed to %s", datetime.now(timezone.utc))
+    except Exception as e:
+        logger.error("Incremental ingest failed: %s", e)
+
+
+@app.on_event("startup")
+def start_scheduler():
+    # Kick off a catch-up once at startup
+    asyncio.create_task(asyncio.to_thread(ingest_incremental))
+    # Schedule incremental every 5 minutes
+    scheduler.add_job(ingest_incremental, IntervalTrigger(minutes=5), id="ingest_incremental", replace_existing=True)
+    scheduler.start()
+
+
+@app.on_event("shutdown")
+def shutdown_scheduler():
+    try:
+        scheduler.shutdown(wait=False)
+    except Exception:
+        pass
 
 
 @app.get("/")
@@ -106,6 +190,14 @@ def run_insights():
     if not insights_path.exists():
         raise HTTPException(status_code=404, detail="Insights page is not available yet")
     return FileResponse(insights_path)
+
+
+@app.get("/hmm-dashboard")
+def hmm_dashboard():
+    path = REPO_ROOT / "frontend" / "hmm-dashboard.html"
+    if not path.exists():
+        raise HTTPException(status_code=404, detail="HMM Dashboard not found")
+    return FileResponse(path)
 
 
 @app.post("/api/data-jobs", response_model=DataJob)
@@ -149,7 +241,7 @@ def get_job(job_id: str):
 
 @app.get("/api/data-coverage")
 def list_coverage(exchange: str, symbol: str):
-    return scan_coverage(KrakenHistoryIngestor(store).config.data_dir, exchange, symbol)
+    return scan_coverage(HistoryIngestor(store).config.data_dir, exchange, symbol)
 
 
 @app.post("/api/data-jobs/{job_id}/actions")
