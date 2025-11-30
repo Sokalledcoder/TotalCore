@@ -1,0 +1,82 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Jesse Dashboard</title>
+  <link rel="icon" href="data:," />
+  <link rel="stylesheet" href="/static/styles.css" />
+</head>
+<body>
+  <nav class="top-nav">
+    <a href="/" class="logo">TradeCore</a>
+    <div class="nav-links">
+      <a href="/">Fetch History</a>
+      <a href="/control-panel">Control Panel</a>
+      <a href="/run-insights">Run Insights</a>
+      <a href="/hmm-dashboard">HMM Lab</a>
+      <a href="/backtest-lab">Backtest Lab</a>
+      <a href="/jesse" class="active">Jesse</a>
+    </div>
+  </nav>
+  <main>
+    <h1>Jesse Dashboard</h1>
+    <p class="subtitle">Run Jesse's GUI backtester and live-trade plugin alongside our TradeCore tools.</p>
+
+    <section class="panel">
+      <div class="panel-header">
+        <h2>Quick start</h2>
+        <div class="btn-group">
+          <button id="openDashboard" type="button">Open Dashboard</button>
+          <button class="ghost" id="openJupyter" type="button">Open Jupyter</button>
+        </div>
+      </div>
+      <p>Bring up the dockerized stack with the helper script:</p>
+      <pre class="code-block">scripts/run_jesse.sh up</pre>
+      <p class="hint">Stop it with <code>scripts/run_jesse.sh down</code>; stream logs via <code>scripts/run_jesse.sh logs</code>.</p>
+      <p class="hint">Default dashboard password (from <code>Jesse/tradecore-jesse/.env</code>): <strong>tradecore</strong>.</p>
+    </section>
+
+    <section class="panel">
+      <h2>Ports & directories</h2>
+      <div class="summary-grid">
+        <div class="summary-card">
+          <p class="label">Dashboard</p>
+          <p class="value">http://localhost:9000</p>
+          <p class="hint">GUI for backtests + live trading</p>
+        </div>
+        <div class="summary-card">
+          <p class="label">Jupyter (inside container)</p>
+          <p class="value">http://localhost:8888</p>
+          <p class="hint">Use the token printed in logs</p>
+        </div>
+        <div class="summary-card">
+          <p class="label">Project root</p>
+          <p class="value">Jesse/tradecore-jesse</p>
+          <p class="hint">Mounted to /home inside the container</p>
+        </div>
+        <div class="summary-card">
+          <p class="label">Persistent storage</p>
+          <p class="value">Jesse/tradecore-jesse/storage</p>
+          <p class="hint">Charts, logs, exports stay in-repo</p>
+        </div>
+      </div>
+    </section>
+
+    <section class="panel">
+      <h2>Notes</h2>
+      <ul>
+        <li>Services are defined in <code>Jesse/tradecore-jesse/docker/docker-compose.yml</code> (Postgres, Redis, and the Jesse app).</li>
+        <li>If you change ports or DB credentials, update both <code>.env</code> and the compose file so the container can reach Postgres/Redis.</li>
+        <li>Strategies live under <code>Jesse/tradecore-jesse/strategies</code>; keep new work there to keep everything contained in the Jessie folder.</li>
+      </ul>
+    </section>
+  </main>
+
+  <script type="module">
+    const openExternal = (url) => window.open(url, '_blank', 'noopener');
+    document.getElementById('openDashboard')?.addEventListener('click', () => openExternal('http://localhost:9000'));
+    document.getElementById('openJupyter')?.addEventListener('click', () => openExternal('http://localhost:8888'));
+  </script>
+</body>
+</html>

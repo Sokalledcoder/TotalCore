@@ -1,0 +1,143 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Backtest Lab</title>
+  <link rel="icon" href="data:,">
+  <link rel="stylesheet" href="/static/styles.css" />
+</head>
+<body>
+  <nav class="top-nav">
+    <a href="/" class="logo">TradeCore</a>
+    <div class="nav-links">
+      <a href="/">Fetch History</a>
+      <a href="/control-panel">Control Panel</a>
+      <a href="/run-insights">Run Insights</a>
+      <a href="/hmm-dashboard">HMM Dashboard</a>
+      <a href="/backtest-lab" class="active">Backtest Lab</a>
+      <a href="/jesse">Jesse</a>
+    </div>
+  </nav>
+  <main>
+    <h1>Backtest Lab</h1>
+    <p class="subtitle">Select a strategy, configure data and params, launch a backtest, and view metrics/results.</p>
+
+    <section class="panel">
+      <h2>Configure Run</h2>
+      <form id="backtestForm">
+        <div class="grid two-col">
+          <div class="field">
+            <label for="strategy">Strategy</label>
+            <select id="strategy" required></select>
+          </div>
+          <div class="field">
+            <label for="engine">Engine</label>
+            <select id="engine">
+              <option value="backtesting_py">backtesting.py (single symbol)</option>
+              <option value="pybroker">PyBroker (multi-asset/ML)</option>
+            </select>
+          </div>
+          <div class="field">
+            <label for="exchange">Exchange</label>
+            <select id="exchange">
+              <option value="binance" selected>Binance</option>
+              <option value="kraken">Kraken</option>
+            </select>
+          </div>
+          <div class="field">
+            <label for="symbols">Symbols (comma-separated)</label>
+            <input type="text" id="symbols" value="BTC/USDT" />
+            <p class="hint">Example: BTC/USDT. If you type BTC/USD for Binance we'll auto-map to USDT.</p>
+          </div>
+          <div class="field">
+            <label for="timeframe">Timeframe</label>
+            <select id="timeframe">
+              <option value="1m">1m</option>
+              <option value="5m">5m</option>
+              <option value="15m">15m</option>
+              <option value="30m">30m</option>
+              <option value="1h" selected>1h</option>
+              <option value="4h">4h</option>
+              <option value="1d">1d</option>
+            </select>
+          </div>
+          <div class="field">
+            <label for="start">Start (UTC)</label>
+            <input type="datetime-local" id="start" />
+          </div>
+          <div class="field">
+            <label for="end">End (UTC)</label>
+            <input type="datetime-local" id="end" />
+          </div>
+          <div class="field">
+            <label for="limit">Max rows</label>
+            <input type="number" id="limit" min="100" step="100" placeholder="e.g. 5000" />
+          </div>
+          <div class="field">
+            <label for="cash">Starting cash</label>
+            <input type="number" id="cash" value="10000" step="100" />
+          </div>
+        </div>
+
+        <div id="paramFields" class="grid two-col"></div>
+
+        <div class="actions">
+          <button type="submit">Run Backtest</button>
+          <span id="runStatus" class="hint"></span>
+        </div>
+      </form>
+    </section>
+
+    <section class="panel">
+      <h2>Latest Runs</h2>
+      <div class="runs-wrapper">
+        <table id="runsTable" class="clickable">
+          <thead>
+            <tr>
+              <th>ID</th>
+              <th>Strategy</th>
+              <th>Engine</th>
+              <th>Status</th>
+              <th>Updated</th>
+              <th>Metrics</th>
+              <th>Actions</th>
+            </tr>
+          </thead>
+          <tbody></tbody>
+        </table>
+      </div>
+    </section>
+
+    <section class="panel" id="resultPanel" style="display:none;">
+      <h2>Result</h2>
+      <div id="metricsList"></div>
+      <div id="artifactLinks" class="links"></div>
+      <div class="chart-toolbar">
+        <label for="tfSelect">Timeframe</label>
+        <select id="tfSelect">
+          <option value="1">1m</option>
+          <option value="5">5m</option>
+          <option value="15" selected>15m</option>
+          <option value="60">1h</option>
+          <option value="240">4h</option>
+          <option value="1440">1d</option>
+        </select>
+        <label for="barLimit">Bars</label>
+        <select id="barLimit">
+          <option value="500">500</option>
+          <option value="2000">2k</option>
+          <option value="4000">4k</option>
+          <option value="12000" selected>12k</option>
+          <option value="0">Max</option>
+        </select>
+      </div>
+      <div class="chart-shell">
+        <div id="chartContainer"></div>
+      </div>
+    </section>
+  </main>
+  <script src="https://cdn.jsdelivr.net/npm/echarts@5/dist/echarts.min.js"></script>
+  <script type="module" src="/static/backtest-lab.js"></script>
+</body>
+</html>

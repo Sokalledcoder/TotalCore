@@ -11,15 +11,35 @@ __pycache__/
 
 # Local data/artifacts
 /data/lake/
-data/jobs.db
+/data/jobs.db
 /data/experiments.db
+/data/trades_parquet/
+/data/bybit_trades_parquet/
+/data/bybit_orderbook_parquet/
+/data/orderbook.db
+/data/orderbook.db.wal
+/data/backtests.db
+/data/backtests/
+/data/backtests_artifacts/
 /runs/
 /models/
 /runpod_submissions/
 runpod_payload.json
 tmp_payload.json
 *.tar.gz
-/aws_*.log
+
+# Large raw data files
+TRADES-DATA/
+
+# DuckDB files
+*.duckdb
+*.duckdb.wal
+
+# Logs
+*.log
+
+# Temp files
+/tmp/
 
 # Frontend build caches
 frontend/node_modules/
@@ -30,3 +50,6 @@ frontend/node_modules/
 
 # Local S3 mirror
 VolumeCore_latest/
+
+# External projects
+Jesse/
