@@ -7,7 +7,7 @@ if pgrep -f "uvicorn app.api:app" >/dev/null; then
   sleep 1
 fi
 source .venv/bin/activate
-nohup uvicorn app.api:app --host 0.0.0.0 --port 8000 >"$LOG" 2>&1 &
+nohup uvicorn app.api:app --host 0.0.0.0 --port 8001 >"$LOG" 2>&1 &
 PID=$!
 sleep 1
 echo "uvicorn started (PID $PID). tail -f $LOG"

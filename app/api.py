@@ -86,9 +86,20 @@ ACTION_DEFAULT_METRICS = ("equity",)
 ACTION_MAX_POINTS = 5000
 
 from app.routers.hmm import router as hmm_router
+from app.routers.footprint import router as footprint_router
+from app.routers.heatmap import router as heatmap_router
+from app.routers.trades_ws import router as trades_ws_router
+from app.routers.orderbook_ws import router as orderbook_ws_router
+# TODO: backtests router disabled - missing BacktestDataRef model in app/models.py
+# from app.routers.backtests import router as backtests_router
 
 app = FastAPI(title="TradeCore Data Service")
 app.include_router(hmm_router)
+app.include_router(footprint_router)
+app.include_router(heatmap_router)
+app.include_router(trades_ws_router)
+app.include_router(orderbook_ws_router)
+# app.include_router(backtests_router)  # Disabled until BacktestDataRef is added
 store = JobStore()
 ingestor = HistoryIngestor(store)
 experiment_store = ExperimentStore()
@@ -197,6 +208,30 @@ def hmm_dashboard():
     path = REPO_ROOT / "frontend" / "hmm-dashboard.html"
     if not path.exists():
         raise HTTPException(status_code=404, detail="HMM Dashboard not found")
+    return FileResponse(path)
+
+
+@app.get("/total-core")
+def total_core():
+    path = REPO_ROOT / "frontend" / "total-core.html"
+    if not path.exists():
+        raise HTTPException(status_code=404, detail="Total Core dashboard not found")
+    return FileResponse(path)
+
+
+@app.get("/jesse")
+def jesse_page():
+    path = REPO_ROOT / "frontend" / "jesse.html"
+    if not path.exists():
+        raise HTTPException(status_code=404, detail="Jesse page not found")
+    return FileResponse(path)
+
+
+@app.get("/backtest-lab")
+def backtest_lab():
+    path = REPO_ROOT / "frontend" / "backtest-lab.html"
+    if not path.exists():
+        raise HTTPException(status_code=404, detail="Backtest Lab not found")
     return FileResponse(path)
 
 
