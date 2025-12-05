@@ -1,7 +1,7 @@
 # TradeCore Startup Guide
 
 > **Complete guide for starting all TradeCore services.**  
-> Last Updated: December 4, 2025
+> Last Updated: December 5, 2025
 
 ---
 
@@ -10,10 +10,17 @@
 ```bash
 cd /home/soka/Desktop/TradeCore
 source .venv/bin/activate
+
+# Start TradeCore API (required)
 bash scripts/run_api.sh
+
+# Start Jesse (required for Jesse link in navigation)
+bash scripts/run_jesse.sh up
 ```
 
-Then open: http://localhost:8001/
+**Access:**
+- TradeCore: http://localhost:8001/
+- Jesse Dashboard: http://localhost:9000/ (password: `tradecore`)
 
 ---
 
@@ -23,7 +30,7 @@ Then open: http://localhost:8001/
 |------|---------|--------|
 | **8000** | Reserved (Coolify/other) | DO NOT USE |
 | **8001** | TradeCore API | Primary port |
-| **9000** | Jesse Dashboard | Optional |
+| **9000** | Jesse Dashboard | Required for full navigation |
 | **8888** | Jesse Jupyter | Optional |
 
 **Important**: TradeCore uses port **8001** because port 8000 is occupied by another service on this VM.
@@ -62,16 +69,25 @@ tail -f server.log
 
 ---
 
-### 2. Jesse Trading Framework (Optional)
+### 2. Jesse Trading Framework (Required for full navigation)
 
 **What it provides:**
-- Jesse trading dashboard
-- Strategy backtesting
+- Jesse trading dashboard on port 9000
+- Strategy backtesting via Jesse
 - Jupyter notebook for research
+- The "Jesse" link in the TradeCore navigation opens Jesse dashboard
 
 **Start command:**
 ```bash
 bash scripts/run_jesse.sh up
+```
+
+**Verify Jesse is running:**
+```bash
+docker ps | grep jesse
+# Should show jesse containers running
+curl -s http://localhost:9000 | head -5
+# Should return Jesse login page HTML
 ```
 
 **Stop command:**
@@ -83,6 +99,8 @@ bash scripts/run_jesse.sh down
 - Dashboard: http://localhost:9000 (password: `tradecore`)
 - Jupyter: http://localhost:8888
 
+**Note:** If Jesse is not running, the "Jesse ↗" link in TradeCore navigation will show an error page.
+
 ---
 
 ## Available Pages
@@ -91,11 +109,11 @@ bash scripts/run_jesse.sh down
 |-----|------|-------------|
 | http://localhost:8001/ | Fetch History | CCXT data ingestion from exchanges |
 | http://localhost:8001/control-panel | Control Panel | RL experiment launcher |
-| http://localhost:8001/total-core | **Total Core** | Order flow visualization dashboard |
-| http://localhost:8001/jesse | Jesse | Jesse framework integration |
-| http://localhost:8001/hmm-dashboard | HMM Dashboard | Hidden Markov Model regime detection |
-| http://localhost:8001/backtest-lab | Backtest Lab | Backtesting interface |
 | http://localhost:8001/run-insights | Run Insights | ML experiment results |
+| http://localhost:8001/hmm-dashboard | HMM Lab | Hidden Markov Model regime detection |
+| http://localhost:8001/total-core | **Total Core** | Order flow visualization dashboard |
+| http://localhost:8001/backtest-lab | Backtest Lab | Backtesting interface |
+| **http://localhost:9000** | **Jesse ↗** | Jesse trading dashboard (external service) |
 
 ---
 

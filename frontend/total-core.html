@@ -106,9 +106,30 @@
         @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.7; } }
         .record-status { font-size: 10px; color: #666; font-family: 'SF Mono', monospace; margin-left: 4px; }
         .record-status.active { color: #ef5350; }
+        
+        /* Navigation bar */
+        .top-nav { display: flex; align-items: center; justify-content: space-between; padding: 6px 12px; background: #0a0a0a; border-bottom: 1px solid #222; }
+        .top-nav .logo { font-weight: 700; text-transform: uppercase; letter-spacing: 0.1em; color: #fff; text-decoration: none; font-size: 12px; }
+        .top-nav .nav-links { display: flex; gap: 6px; }
+        .top-nav .nav-links a { color: #888; text-decoration: none; font-size: 11px; padding: 4px 10px; border-radius: 3px; border: 1px solid #333; background: #1a1a1a; transition: all 0.2s; }
+        .top-nav .nav-links a:hover { background: #252525; color: #fff; border-color: #444; }
+        .top-nav .nav-links a.active { background: #50C7E0; color: #000; border-color: #50C7E0; }
     </style>
 </head>
 <body>
+
+<nav class="top-nav">
+    <a href="/" class="logo">TradeCore</a>
+    <div class="nav-links">
+        <a href="/">Fetch History</a>
+        <a href="/control-panel">Control Panel</a>
+        <a href="/run-insights">Run Insights</a>
+        <a href="/hmm-dashboard">HMM Lab</a>
+        <a href="/total-core" class="active">Total Core</a>
+        <a href="/backtest-lab">Backtest Lab</a>
+        <a href="http://localhost:9000" target="_blank">Jesse ↗</a>
+    </div>
+</nav>
 
 <div id="loading">
     <div class="spinner"></div>
