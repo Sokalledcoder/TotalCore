@@ -5,6 +5,7 @@ import logging
 import subprocess
 import sys
 import uuid
+import time
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Sequence
@@ -17,7 +18,7 @@ from fastapi.middleware.cors import CORSMiddleware
 import asyncio
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
 from apscheduler.triggers.interval import IntervalTrigger
-from fastapi.responses import FileResponse
+from fastapi.responses import FileResponse, Response
 from fastapi.staticfiles import StaticFiles
 from starlette.middleware.base import BaseHTTPMiddleware
 from starlette.requests import Request
@@ -98,20 +99,25 @@ from app.routers.orderbook_ws import router as orderbook_ws_router
 
 app = FastAPI(title="TradeCore Data Service")
 
+# Server startup timestamp - changes every restart to force cache invalidation
+SERVER_START_TIME = int(time.time())
+
 # Middleware to disable caching for HTML pages and force fresh JS/CSS
 class NoCacheMiddleware(BaseHTTPMiddleware):
     async def dispatch(self, request: Request, call_next):
         response = await call_next(request)
         # Disable caching for HTML pages
         if request.url.path.endswith('.html') or request.url.path == '/':
-            response.headers["Cache-Control"] = "no-cache, no-store, must-revalidate"
+            response.headers["Cache-Control"] = "no-cache, no-store, must-revalidate, max-age=0"
             response.headers["Pragma"] = "no-cache"
             response.headers["Expires"] = "0"
+            response.headers["ETag"] = f'"{SERVER_START_TIME}"'
         # Also disable for JS/CSS to ensure fresh code
         elif request.url.path.endswith(('.js', '.css')):
-            response.headers["Cache-Control"] = "no-cache, no-store, must-revalidate"
+            response.headers["Cache-Control"] = "no-cache, no-store, must-revalidate, max-age=0"
             response.headers["Pragma"] = "no-cache"
             response.headers["Expires"] = "0"
+            response.headers["ETag"] = f'"{SERVER_START_TIME}"'
         return response
 
 app.add_middleware(NoCacheMiddleware)
@@ -204,9 +210,19 @@ def shutdown_scheduler():
         pass
 
 
+def serve_html_with_no_cache(file_path):
+    """Serve HTML file with cache-busting headers"""
+    response = FileResponse(file_path)
+    response.headers["Cache-Control"] = "no-cache, no-store, must-revalidate, max-age=0"
+    response.headers["Pragma"] = "no-cache"
+    response.headers["Expires"] = "0"
+    response.headers["ETag"] = f'"{SERVER_START_TIME}"'
+    return response
+
+
 @app.get("/")
 def root():
-    return FileResponse("frontend/fetch-history.html")
+    return serve_html_with_no_cache("frontend/fetch-history.html")
 
 
 @app.get("/control-panel")
@@ -214,7 +230,7 @@ def control_panel():
     control_path = REPO_ROOT / "frontend" / "control-panel.html"
     if not control_path.exists():
         raise HTTPException(status_code=404, detail="Control panel page is not available yet")
-    return FileResponse(control_path)
+    return serve_html_with_no_cache(control_path)
 
 
 @app.get("/run-insights")
@@ -222,7 +238,7 @@ def run_insights():
     insights_path = REPO_ROOT / "frontend" / "run-insights.html"
     if not insights_path.exists():
         raise HTTPException(status_code=404, detail="Insights page is not available yet")
-    return FileResponse(insights_path)
+    return serve_html_with_no_cache(insights_path)
 
 
 @app.get("/hmm-dashboard")
@@ -230,7 +246,7 @@ def hmm_dashboard():
     path = REPO_ROOT / "frontend" / "hmm-dashboard.html"
     if not path.exists():
         raise HTTPException(status_code=404, detail="HMM Dashboard not found")
-    return FileResponse(path)
+    return serve_html_with_no_cache(path)
 
 
 @app.get("/total-core")
@@ -238,7 +254,7 @@ def total_core():
     path = REPO_ROOT / "frontend" / "total-core.html"
     if not path.exists():
         raise HTTPException(status_code=404, detail="Total Core dashboard not found")
-    return FileResponse(path)
+    return serve_html_with_no_cache(path)
 
 
 @app.get("/jesse")
@@ -246,7 +262,7 @@ def jesse_page():
     path = REPO_ROOT / "frontend" / "jesse.html"
     if not path.exists():
         raise HTTPException(status_code=404, detail="Jesse page not found")
-    return FileResponse(path)
+    return serve_html_with_no_cache(path)
 
 
 @app.get("/backtest-lab")
@@ -254,7 +270,7 @@ def backtest_lab():
     path = REPO_ROOT / "frontend" / "backtest-lab.html"
     if not path.exists():
         raise HTTPException(status_code=404, detail="Backtest Lab not found")
-    return FileResponse(path)
+    return serve_html_with_no_cache(path)
 
 
 @app.post("/api/data-jobs", response_model=DataJob)

@@ -1,8 +1,5 @@
-INFO:     Started server process [2953094]
+INFO:     Started server process [2967969]
 INFO:     Waiting for application startup.
 INFO:     Application startup complete.
 INFO:     Uvicorn running on http://0.0.0.0:8001 (Press CTRL+C to quit)
-INFO:     127.0.0.1:48856 - "GET /total-core HTTP/1.1" 200 OK
-INFO:     127.0.0.1:48856 - "GET /static/total-core.js?v=20251205 HTTP/1.1" 200 OK
-INFO:     127.0.0.1:48856 - "GET /favicon.ico HTTP/1.1" 404 Not Found
-INFO:     127.0.0.1:48856 - "GET /api/footprint/candles?symbol=BTCUSDT&exchange=binance&timeframe=1m&tick_size=1&ticks_per_row=1&limit=34 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:44142 - "GET /total-core HTTP/1.1" 200 OK
