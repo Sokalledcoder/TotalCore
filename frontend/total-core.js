@@ -965,12 +965,41 @@ async function initSciChart() {
 
     } catch (e) {
         console.error("Failed to initialize SciChart:", e);
-        document.getElementById('loading').innerHTML = `
-            <div style="color: red; text-align: center;">
-                <p>Failed to initialize chart engine</p>
-                <p style="font-size: 12px;">${e.message}</p>
-            </div>
-        `;
+        const isWebGLError = e.message && e.message.toLowerCase().includes('webgl');
+        
+        if (isWebGLError) {
+            document.getElementById('loading').innerHTML = `
+                <div style="color: #ff6b6b; text-align: center; max-width: 600px; padding: 20px;">
+                    <h3 style="margin-bottom: 15px;">⚠️ WebGL Not Available</h3>
+                    <p style="color: #aaa; margin-bottom: 20px;">Chrome has disabled WebGL due to GPU crashes.</p>
+                    
+                    <div style="text-align: left; background: #1a1a1a; padding: 15px; border-radius: 8px;">
+                        <p style="color: #50C7E0; margin-bottom: 10px;"><strong>Fix: Reset Chrome's GPU cache</strong></p>
+                        <p style="color: #888; margin-bottom: 10px;">Run these commands in terminal, then restart Chrome:</p>
+                        <pre style="background: #0d0d0d; padding: 12px; border-radius: 4px; overflow-x: auto; font-size: 12px; color: #4ade80;">pkill -9 chrome
+rm -rf ~/.config/google-chrome/Default/GPUCache
+rm -rf ~/.config/google-chrome/GrShaderCache
+rm -rf ~/.config/google-chrome/ShaderCache
+google-chrome</pre>
+                        <button onclick="navigator.clipboard.writeText('pkill -9 chrome && rm -rf ~/.config/google-chrome/Default/GPUCache && rm -rf ~/.config/google-chrome/GrShaderCache && rm -rf ~/.config/google-chrome/ShaderCache && google-chrome')" 
+                                style="margin-top: 10px; padding: 8px 16px; background: #333; border: 1px solid #444; color: #fff; border-radius: 4px; cursor: pointer;">
+                            📋 Copy Command
+                        </button>
+                    </div>
+                    
+                    <p style="color: #666; margin-top: 15px; font-size: 11px;">
+                        Or use Firefox/Edge which work without this issue.
+                    </p>
+                </div>
+            `;
+        } else {
+            document.getElementById('loading').innerHTML = `
+                <div style="color: #ff6b6b; text-align: center; padding: 20px;">
+                    <h3>Failed to initialize chart engine</h3>
+                    <p style="font-size: 12px; color: #888;">${e.message}</p>
+                </div>
+            `;
+        }
         return false;
     }
 }
