@@ -13,11 +13,14 @@ import asyncio
 import numpy as np
 import pandas as pd
 from fastapi import BackgroundTasks, FastAPI, HTTPException, Query
+from fastapi.middleware.cors import CORSMiddleware
 import asyncio
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
 from apscheduler.triggers.interval import IntervalTrigger
 from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
+from starlette.middleware.base import BaseHTTPMiddleware
+from starlette.requests import Request
 
 from app.coverage import scan_coverage
 from app.experiment_store import ExperimentJobRecord, ExperimentStore
@@ -94,6 +97,25 @@ from app.routers.orderbook_ws import router as orderbook_ws_router
 # from app.routers.backtests import router as backtests_router
 
 app = FastAPI(title="TradeCore Data Service")
+
+# Middleware to disable caching for HTML pages and force fresh JS/CSS
+class NoCacheMiddleware(BaseHTTPMiddleware):
+    async def dispatch(self, request: Request, call_next):
+        response = await call_next(request)
+        # Disable caching for HTML pages
+        if request.url.path.endswith('.html') or request.url.path == '/':
+            response.headers["Cache-Control"] = "no-cache, no-store, must-revalidate"
+            response.headers["Pragma"] = "no-cache"
+            response.headers["Expires"] = "0"
+        # Also disable for JS/CSS to ensure fresh code
+        elif request.url.path.endswith(('.js', '.css')):
+            response.headers["Cache-Control"] = "no-cache, no-store, must-revalidate"
+            response.headers["Pragma"] = "no-cache"
+            response.headers["Expires"] = "0"
+        return response
+
+app.add_middleware(NoCacheMiddleware)
+
 app.include_router(hmm_router)
 app.include_router(footprint_router)
 app.include_router(heatmap_router)
