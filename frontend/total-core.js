@@ -41,45 +41,7 @@ const {
     zeroArray2D
 } = SciChart;
 
-// Check WebGL support before configuring SciChart
-// Note: We allow software renderers (SwiftShader) as fallback for VMs
-function checkWebGLSupport() {
-    try {
-        const canvas = document.createElement('canvas');
-        const gl = canvas.getContext('webgl2') || canvas.getContext('webgl') || canvas.getContext('experimental-webgl');
-        if (!gl) {
-            return { 
-                supported: false, 
-                reason: 'WebGL context could not be created',
-                canRetry: false
-            };
-        }
-        
-        // Check renderer info
-        const debugInfo = gl.getExtension('WEBGL_debug_renderer_info');
-        let rendererInfo = 'Unknown';
-        let isSoftwareRenderer = false;
-        
-        if (debugInfo) {
-            rendererInfo = gl.getParameter(debugInfo.UNMASKED_RENDERER_WEBGL);
-            isSoftwareRenderer = rendererInfo.includes('SwiftShader') || rendererInfo.includes('Software');
-        }
-        
-        // Allow software renderers (common in VMs) but warn user
-        return { 
-            supported: true,
-            isSoftwareRenderer: isSoftwareRenderer,
-            renderer: rendererInfo,
-            warning: isSoftwareRenderer ? 'Using software renderer (VM detected). Performance may be reduced.' : null
-        };
-    } catch (e) {
-        return { 
-            supported: false, 
-            reason: e.message,
-            canRetry: false
-        };
-    }
-}
+// WebGL check removed - let SciChart handle initialization and fallbacks
 
 // Configure WASM location
 SciChartSurface.configure({
@@ -886,49 +848,6 @@ const COLORS = {
 };
 
 async function initSciChart() {
-    // Pre-check WebGL support
-    const webglCheck = checkWebGLSupport();
-    
-    // Show warning if using software renderer
-    if (webglCheck.supported && webglCheck.isSoftwareRenderer) {
-        console.warn('⚠️ Software WebGL renderer detected (VM environment). Performance may be reduced.');
-        const warningDiv = document.createElement('div');
-        warningDiv.style.cssText = 'position: fixed; top: 60px; right: 10px; background: #1a1a1a; border: 1px solid #ff9800; color: #ff9800; padding: 10px 15px; border-radius: 4px; font-size: 12px; z-index: 999; max-width: 300px;';
-        warningDiv.innerHTML = `⚠️ Software renderer (VM). Performance may be reduced. <button onclick="this.parentElement.style.display='none'" style="background: none; border: none; color: #ff9800; cursor: pointer; margin-left: 10px;">✕</button>`;
-        document.body.appendChild(warningDiv);
-        setTimeout(() => warningDiv.style.display = 'none', 8000);
-    }
-    
-    if (!webglCheck.supported) {
-        const isChrome = /Chrome/.test(navigator.userAgent) && /Google Inc/.test(navigator.vendor);
-        let errorHtml = `
-            <div style="color: #ff6b6b; text-align: center; max-width: 500px; padding: 20px;">
-                <h3 style="margin-bottom: 15px;">⚠️ WebGL Not Available</h3>
-                <p style="margin-bottom: 15px; color: #aaa;">${webglCheck.reason}</p>
-        `;
-        
-        if (isChrome) {
-            errorHtml += `
-                <div style="text-align: left; background: #1a1a1a; padding: 15px; border-radius: 8px; margin-top: 15px;">
-                    <p style="color: #50C7E0; margin-bottom: 10px;"><strong>To fix in Chrome:</strong></p>
-                    <ol style="color: #888; line-height: 1.8; padding-left: 20px;">
-                        <li>Open <code style="background: #333; padding: 2px 6px; border-radius: 3px;">chrome://settings</code></li>
-                        <li>Go to <strong>System</strong> (left sidebar)</li>
-                        <li>Enable <strong>"Use graphics acceleration when available"</strong></li>
-                        <li>Restart Chrome completely</li>
-                    </ol>
-                    <p style="color: #666; margin-top: 10px; font-size: 11px;">
-                        Or try: <code style="background: #333; padding: 2px 6px; border-radius: 3px;">chrome://flags/#ignore-gpu-blocklist</code> → Enable → Restart
-                    </p>
-                </div>
-            `;
-        }
-        
-        errorHtml += `</div>`;
-        document.getElementById('loading').innerHTML = errorHtml;
-        return false;
-    }
-    
     try {
         // 1. Main Price Chart with black theme
         const result = await SciChartSurface.create("sci-chart-div", {
