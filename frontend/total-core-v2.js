@@ -32,6 +32,11 @@ let isRecording = false;
 let orderbookWebSocket = null;
 let currentOrderBook = { bids: [], asks: [] };
 
+// Bubble data
+let bubbleData = [];
+let bubbleMinSize = 100000;  // $100K minimum
+let bubbleMaxSize = 2000000; // $2M maximum
+
 // ============================================================================
 // Chart Colors (matching TotalCore theme)
 // ============================================================================
@@ -241,6 +246,11 @@ async function loadData() {
             drawFootprint(data.candles || []);
         }
         
+        // Load bubbles if enabled
+        if (showBubbles) {
+            loadBubbles();
+        }
+        
         // Fit content
         mainChart.timeScale().fitContent();
         
@@ -411,6 +421,103 @@ function drawFootprint(candles) {
                 ctx.stroke();
             }
         }
+    });
+}
+
+// ============================================================================
+// Bubble Visualization
+// ============================================================================
+async function loadBubbles() {
+    if (!currentData?.candles?.length) return;
+    
+    const symbol = document.getElementById('symbol-select')?.value || 'BTCUSDT';
+    const exchange = document.getElementById('exchange-select')?.value || 'binance';
+    
+    // Get time range from loaded candles
+    const candles = currentData.candles;
+    const startTs = candles[0]?.timestamp;
+    const endTs = candles[candles.length - 1]?.timestamp;
+    
+    if (!startTs || !endTs) return;
+    
+    try {
+        const url = `/api/heatmap/bubbles?symbol=${symbol}&start_ts=${startTs}&end_ts=${endTs}&min_size_usd=${bubbleMinSize}&max_size_usd=${bubbleMaxSize}&limit=500`;
+        const response = await fetch(url);
+        if (!response.ok) return;
+        
+        const data = await response.json();
+        bubbleData = data.bubbles || [];
+        console.log(`Loaded ${bubbleData.length} bubbles`);
+        
+        drawBubbles();
+    } catch (e) {
+        console.error('Failed to load bubbles:', e);
+    }
+}
+
+function updateBubbleRange() {
+    const minSlider = document.getElementById('bubble-min-slider');
+    const maxSlider = document.getElementById('bubble-max-slider');
+    const display = document.getElementById('bubble-value-display');
+    
+    if (!minSlider || !maxSlider) return;
+    
+    let minVal = parseInt(minSlider.value);
+    let maxVal = parseInt(maxSlider.value);
+    
+    // Ensure min <= max
+    if (minVal > maxVal) {
+        [minVal, maxVal] = [maxVal, minVal];
+    }
+    
+    bubbleMinSize = minVal * 1000;  // Convert K to actual
+    bubbleMaxSize = maxVal * 1000;
+    
+    if (display) {
+        display.textContent = `${minVal}K - ${maxVal >= 1000 ? (maxVal/1000).toFixed(0) + 'M' : maxVal + 'K'}`;
+    }
+    
+    // Reload bubbles with new range
+    if (showBubbles && currentData) {
+        loadBubbles();
+    }
+}
+
+function drawBubbles() {
+    const canvas = document.getElementById('footprint-canvas');
+    if (!canvas || !mainChart || !candleSeries || !showBubbles) return;
+    
+    const ctx = canvas.getContext('2d');
+    const timeScale = mainChart.timeScale();
+    
+    // Find size range for normalization
+    const sizes = bubbleData.map(b => b.size_usd);
+    const minSize = Math.min(...sizes, bubbleMinSize);
+    const maxSize = Math.max(...sizes, bubbleMaxSize);
+    
+    bubbleData.forEach(bubble => {
+        const time = Math.floor(bubble.timestamp_ms / 1000);
+        const x = timeScale.timeToCoordinate(time);
+        const y = candleSeries.priceToCoordinate(bubble.price);
+        
+        if (x === null || y === null) return;
+        
+        // Calculate bubble radius based on size (5-25px)
+        const sizeRatio = (bubble.size_usd - minSize) / (maxSize - minSize + 1);
+        const radius = 5 + sizeRatio * 20;
+        
+        // Color based on buy/sell
+        ctx.beginPath();
+        ctx.arc(x, y, radius, 0, Math.PI * 2);
+        ctx.fillStyle = bubble.is_buy 
+            ? 'rgba(38, 166, 154, 0.6)' 
+            : 'rgba(239, 83, 80, 0.6)';
+        ctx.fill();
+        
+        // Add border
+        ctx.strokeStyle = bubble.is_buy ? '#26a69a' : '#ef5350';
+        ctx.lineWidth = 1;
+        ctx.stroke();
     });
 }
 
@@ -639,7 +746,17 @@ function setupEventHandlers() {
         showBubbles = !showBubbles;
         e.target.classList.toggle('active', showBubbles);
         document.getElementById('bubble-slider-group')?.classList.toggle('visible', showBubbles);
+        if (showBubbles && currentData) {
+            loadBubbles();
+        } else {
+            // Redraw footprint without bubbles
+            if (currentData) drawFootprint(currentData.candles || []);
+        }
     });
+    
+    // Bubble size sliders
+    document.getElementById('bubble-min-slider')?.addEventListener('input', updateBubbleRange);
+    document.getElementById('bubble-max-slider')?.addEventListener('input', updateBubbleRange);
     
     document.getElementById('show-heatmap')?.addEventListener('click', (e) => {
         showHeatmap = !showHeatmap;
