@@ -1,0 +1,452 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Total Core V2 | Lightweight Charts</title>
+    <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+    <meta http-equiv="Pragma" content="no-cache">
+    <meta http-equiv="Expires" content="0">
+    <!-- Lightweight Charts from CDN -->
+    <script src="https://unpkg.com/lightweight-charts@4.2.0/dist/lightweight-charts.standalone.production.js"></script>
+    <style>
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        
+        body { 
+            background: #000; 
+            color: #e0e0e0; 
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif; 
+            overflow: hidden; 
+        }
+        
+        /* Navigation bar */
+        .top-nav { 
+            display: flex; 
+            align-items: center; 
+            justify-content: space-between; 
+            padding: 6px 12px; 
+            background: #0a0a0a; 
+            border-bottom: 1px solid #222; 
+        }
+        .top-nav .logo { 
+            font-weight: 700; 
+            text-transform: uppercase; 
+            letter-spacing: 0.1em; 
+            color: #fff; 
+            text-decoration: none; 
+            font-size: 12px; 
+        }
+        .top-nav .nav-links { display: flex; gap: 6px; }
+        .top-nav .nav-links a { 
+            color: #888; 
+            text-decoration: none; 
+            font-size: 11px; 
+            padding: 4px 10px; 
+            border-radius: 3px; 
+            border: 1px solid #333; 
+            background: #1a1a1a; 
+            transition: all 0.2s; 
+        }
+        .top-nav .nav-links a:hover { background: #252525; color: #fff; border-color: #444; }
+        .top-nav .nav-links a.active { background: #50C7E0; color: #000; border-color: #50C7E0; }
+        
+        /* Main layout */
+        #app-container { 
+            display: grid; 
+            grid-template-columns: 1fr 280px; 
+            grid-template-rows: auto 1fr 180px; 
+            height: calc(100vh - 35px); 
+            width: 100vw; 
+        }
+        
+        /* Header */
+        header { 
+            grid-column: 1 / -1; 
+            background: #0a0a0a; 
+            border-bottom: 1px solid #222; 
+            display: flex; 
+            flex-direction: column; 
+        }
+        .header-row { 
+            display: flex; 
+            align-items: center; 
+            padding: 4px 8px; 
+            gap: 10px; 
+            flex-wrap: wrap;
+        }
+        .header-row:first-child { border-bottom: 1px solid #1a1a1a; }
+        
+        h1 { font-size: 16px; margin: 0; color: #fff; font-weight: 600; }
+        
+        .control-group { display: flex; align-items: center; gap: 8px; }
+        label { font-size: 11px; color: #888; }
+        select, input[type="number"], input[type="date"], input[type="time"] { 
+            background: #1a1a1a; 
+            border: 1px solid #333; 
+            color: #fff; 
+            padding: 4px 8px; 
+            border-radius: 3px; 
+            font-size: 11px; 
+        }
+        select:focus, input:focus { outline: none; border-color: #50C7E0; }
+        
+        button { 
+            background: #1a1a1a; 
+            border: 1px solid #333; 
+            color: #888; 
+            padding: 4px 12px; 
+            border-radius: 3px; 
+            cursor: pointer; 
+            font-size: 11px; 
+            transition: all 0.2s; 
+        }
+        button:hover { background: #252525; color: #fff; border-color: #444; }
+        button.active { background: #333; color: #50C7E0; border-color: #50C7E0; }
+        button.recording { background: #ff4444; border-color: #ff4444; color: #fff; }
+        
+        .record-status { 
+            font-size: 10px; 
+            color: #666; 
+            margin-left: 4px; 
+        }
+        .record-status.active { color: #ff4444; }
+        
+        /* Chart area */
+        #chart-area { 
+            grid-column: 1;
+            grid-row: 2;
+            position: relative; 
+            background: #000; 
+            overflow: hidden; 
+        }
+        #main-chart { 
+            width: 100%; 
+            height: 100%; 
+        }
+        #footprint-canvas {
+            position: absolute;
+            top: 0;
+            left: 0;
+            pointer-events: none;
+            z-index: 5;
+        }
+        
+        /* DOM Panel */
+        #dom-panel { 
+            grid-column: 2;
+            grid-row: 2 / 4; 
+            background: #0a0a0a; 
+            border-left: 1px solid #222; 
+            display: flex; 
+            flex-direction: column; 
+            overflow: hidden; 
+        }
+        .dom-header { 
+            display: flex; 
+            align-items: center; 
+            justify-content: space-between; 
+            padding: 6px 10px; 
+            background: #111; 
+            border-bottom: 1px solid #222; 
+        }
+        .dom-header-title { font-size: 11px; color: #888; font-weight: 600; }
+        .dom-controls { display: flex; align-items: center; gap: 6px; }
+        .dom-controls label { font-size: 10px; }
+        .dom-controls select { font-size: 10px; padding: 2px 4px; }
+        .dom-spread { font-size: 10px; color: #50C7E0; }
+        
+        .dom-content { 
+            flex: 1; 
+            overflow-y: auto; 
+            display: flex; 
+            flex-direction: column; 
+        }
+        .dom-asks, .dom-bids { flex: 1; overflow-y: auto; }
+        .dom-asks { display: flex; flex-direction: column-reverse; }
+        .dom-mid-price { 
+            padding: 8px; 
+            text-align: center; 
+            font-size: 14px; 
+            font-weight: 600; 
+            background: #111; 
+            color: #fff; 
+            border-top: 1px solid #222; 
+            border-bottom: 1px solid #222; 
+        }
+        
+        .dom-row { 
+            display: grid; 
+            grid-template-columns: 60px 1fr 70px 1fr 60px; 
+            font-size: 10px; 
+            padding: 1px 4px; 
+            align-items: center; 
+        }
+        .dom-row:hover { background: #1a1a1a; }
+        .dom-qty { text-align: right; color: #888; }
+        .dom-bar { height: 12px; }
+        .dom-bar-bid { background: linear-gradient(to left, #26a69a44, transparent); }
+        .dom-bar-ask { background: linear-gradient(to right, #ef535044, transparent); }
+        .dom-price { text-align: center; font-weight: 500; }
+        .dom-price-bid { color: #26a69a; }
+        .dom-price-ask { color: #ef5350; }
+        
+        /* Bottom panel - Indicator chart */
+        #bottom-panel { 
+            background: #0a0a0a; 
+            border-top: 1px solid #222; 
+            display: flex; 
+            flex-direction: column; 
+        }
+        #indicator-controls { 
+            display: flex; 
+            gap: 4px; 
+            padding: 4px 8px; 
+            border-bottom: 1px solid #1a1a1a; 
+        }
+        .indicator-btn { 
+            font-size: 10px; 
+            padding: 2px 8px; 
+        }
+        .indicator-btn.active { 
+            background: #50C7E0; 
+            color: #000; 
+            border-color: #50C7E0; 
+        }
+        #indicator-chart { 
+            flex: 1; 
+            min-height: 0; 
+        }
+        
+        /* Loading overlay */
+        #loading { 
+            position: fixed; 
+            top: 0; 
+            left: 0; 
+            right: 0; 
+            bottom: 0; 
+            background: #000; 
+            display: flex; 
+            flex-direction: column;
+            align-items: center; 
+            justify-content: center; 
+            z-index: 1000; 
+        }
+        #loading.hidden { display: none; }
+        .spinner { 
+            width: 40px; 
+            height: 40px; 
+            border: 3px solid #333; 
+            border-top-color: #50C7E0; 
+            border-radius: 50%; 
+            animation: spin 1s linear infinite; 
+        }
+        @keyframes spin { to { transform: rotate(360deg); } }
+        #loading-text { 
+            margin-top: 12px; 
+            color: #888; 
+            font-size: 12px; 
+        }
+        
+        /* Bubble slider controls */
+        .bubble-slider-group { 
+            display: none; 
+            align-items: center; 
+            gap: 6px; 
+            margin-left: 8px; 
+        }
+        .bubble-slider-group.visible { display: flex; }
+        .bubble-slider-container { 
+            position: relative; 
+            width: 100px; 
+            height: 20px; 
+        }
+        .bubble-slider-container input[type="range"] { 
+            position: absolute; 
+            width: 100%; 
+            pointer-events: none; 
+            -webkit-appearance: none;
+            appearance: none; 
+            background: transparent; 
+        }
+        .bubble-slider-container input[type="range"]::-webkit-slider-thumb { 
+            pointer-events: all; 
+            -webkit-appearance: none; 
+            appearance: none;
+            width: 12px; 
+            height: 12px; 
+            background: #50C7E0; 
+            border-radius: 50%; 
+            cursor: pointer; 
+        }
+        .bubble-value-display { font-size: 10px; color: #888; }
+        
+        /* Heatmap controls */
+        .heatmap-controls { 
+            display: none; 
+            align-items: center; 
+            gap: 6px; 
+            margin-left: 8px; 
+        }
+        .heatmap-controls.visible { display: flex; }
+        .heatmap-controls input[type="range"] { width: 60px; }
+        .heatmap-opacity-display { font-size: 10px; color: #888; }
+        
+        /* V2 Badge */
+        .v2-badge {
+            background: #50C7E0;
+            color: #000;
+            font-size: 9px;
+            font-weight: 700;
+            padding: 1px 4px;
+            border-radius: 2px;
+            margin-left: 6px;
+        }
+    </style>
+</head>
+<body>
+
+<nav class="top-nav">
+    <a href="/" class="logo">TradeCore</a>
+    <div class="nav-links">
+        <a href="/">Fetch History</a>
+        <a href="/control-panel">Control Panel</a>
+        <a href="/run-insights">Run Insights</a>
+        <a href="/hmm-dashboard">HMM Lab</a>
+        <a href="/total-core">Total Core</a>
+        <a href="/total-core-v2" class="active">Total Core V2</a>
+        <a href="/backtest-lab">Backtest Lab</a>
+        <a href="http://localhost:9000" target="_blank">Jesse ↗</a>
+    </div>
+</nav>
+
+<div id="loading">
+    <div class="spinner"></div>
+    <div id="loading-text">Loading chart...</div>
+</div>
+
+<div id="app-container">
+    <header>
+        <!-- Row 1: Data Controls -->
+        <div class="header-row">
+            <h1>Total Core<span class="v2-badge">V2</span></h1>
+            <div class="control-group">
+                <label>Exchange</label>
+                <select id="exchange-select">
+                    <option value="binance">Binance</option>
+                    <option value="bybit">Bybit</option>
+                </select>
+            </div>
+            <div class="control-group">
+                <label>Symbol</label>
+                <select id="symbol-select">
+                    <option value="BTCUSDT">BTCUSDT</option>
+                </select>
+            </div>
+            <div class="control-group">
+                <label>Timeframe</label>
+                <select id="tf-select">
+                    <option value="1m" selected>1m</option>
+                    <option value="5m">5m</option>
+                    <option value="15m">15m</option>
+                    <option value="30m">30m</option>
+                    <option value="1h">1h</option>
+                    <option value="4h">4h</option>
+                </select>
+            </div>
+            <div class="control-group">
+                <label>Candles</label>
+                <input type="number" id="candle-limit" value="100" min="10" max="5000" step="10">
+            </div>
+            <div class="control-group" title="Price bin width in $. Lower = more detail, Higher = less detail.">
+                <label>Bin Size ($)</label>
+                <input type="number" id="tick-size" value="1" min="1" max="100" step="1" style="width: 50px;">
+                <span id="bin-size-display" style="font-size: 10px; color: #666;"></span>
+            </div>
+            <div class="control-group">
+                <label>Date</label>
+                <input type="date" id="start-date" style="width: 110px; font-size: 11px;">
+                <input type="time" id="start-time-clock" style="width: 70px; font-size: 11px;" value="00:00">
+                <button id="go-to-date" title="Load data from this date/time">Go</button>
+            </div>
+            <div class="control-group">
+                <button id="load-btn">Reload</button>
+            </div>
+            <div class="control-group" style="margin-left: auto;">
+                <button id="record-btn" title="Record live order book data">⏺ Record</button>
+                <span id="record-status" class="record-status">Stopped</span>
+            </div>
+        </div>
+        
+        <!-- Row 2: Visualization Controls -->
+        <div class="header-row">
+            <button id="vol-unit-toggle" title="Toggle between BTC and USD volume display">USD</button>
+            <span style="color:#333;">|</span>
+            <button id="autoscale-toggle" class="active" title="Auto-scale Y-axis when zooming">AutoY</button>
+            <button id="show-candles" class="active" title="Show/hide candlestick overlay">Candles</button>
+            <button id="show-footprint" class="active">Footprint</button>
+            <button id="show-orderflow">Order Flow</button>
+            <button id="show-poc" class="active">POC</button>
+            <button id="show-va">VA</button>
+            <span style="color:#333;">|</span>
+            <button id="show-bubbles" title="Show volume bubbles (large trades)">Bubbles</button>
+            <div id="bubble-slider-group" class="bubble-slider-group">
+                <label>Size ($K)</label>
+                <div class="bubble-slider-container">
+                    <input type="range" id="bubble-min-slider" min="50" max="5000" value="100" step="50">
+                    <input type="range" id="bubble-max-slider" min="50" max="5000" value="2000" step="50">
+                </div>
+                <span id="bubble-value-display" class="bubble-value-display">100K - 2M</span>
+            </div>
+            <span style="color:#333;">|</span>
+            <button id="show-heatmap" title="Show liquidity heatmap visualization">Heatmap</button>
+            <div id="heatmap-controls" class="heatmap-controls">
+                <label>Opacity</label>
+                <input type="range" id="heatmap-opacity" min="10" max="100" value="40" step="5">
+                <span id="heatmap-opacity-display" class="heatmap-opacity-display">40%</span>
+            </div>
+        </div>
+    </header>
+
+    <div id="chart-area">
+        <div id="main-chart"></div>
+        <canvas id="footprint-canvas"></canvas>
+    </div>
+
+    <!-- DOM (Depth of Market) Panel -->
+    <div id="dom-panel">
+        <div class="dom-header">
+            <span class="dom-header-title">Order Book</span>
+            <div class="dom-controls">
+                <label>Agg:</label>
+                <select id="dom-aggregation">
+                    <option value="0.1">$0.10</option>
+                    <option value="0.25">$0.25</option>
+                    <option value="0.5">$0.50</option>
+                    <option value="1">$1</option>
+                    <option value="5" selected>$5</option>
+                    <option value="10">$10</option>
+                    <option value="25">$25</option>
+                    <option value="50">$50</option>
+                </select>
+            </div>
+            <span class="dom-spread" id="dom-spread">-</span>
+        </div>
+        <div class="dom-content">
+            <div class="dom-asks" id="dom-asks"></div>
+            <div class="dom-mid-price" id="dom-mid-price">-</div>
+            <div class="dom-bids" id="dom-bids"></div>
+        </div>
+    </div>
+
+    <div id="bottom-panel">
+        <div id="indicator-controls">
+            <button class="indicator-btn active" data-mode="delta">Delta</button>
+            <button class="indicator-btn" data-mode="cvd">CVD</button>
+        </div>
+        <div id="indicator-chart"></div>
+    </div>
+</div>
+
+<script src="/static/total-core-v2.js"></script>
+</body>
+</html>

@@ -1,15 +1,21 @@
-INFO:     Started server process [3693022]
+INFO:     Started server process [471098]
 INFO:     Waiting for application startup.
 INFO:     Application startup complete.
 INFO:     Uvicorn running on http://0.0.0.0:8001 (Press CTRL+C to quit)
-INFO:     127.0.0.1:57890 - "GET / HTTP/1.1" 200 OK
-INFO:     127.0.0.1:38028 - "GET / HTTP/1.1" 200 OK
-INFO:     127.0.0.1:38028 - "GET /static/styles.css HTTP/1.1" 200 OK
-INFO:     127.0.0.1:38044 - "GET /static/fetch-history.js HTTP/1.1" 200 OK
-INFO:     127.0.0.1:38028 - "GET /favicon.ico HTTP/1.1" 404 Not Found
-INFO:     127.0.0.1:38044 - "GET /api/data-coverage?exchange=kraken&symbol=BTC%2FUSD HTTP/1.1" 200 OK
-INFO:     127.0.0.1:60712 - "GET /total-core HTTP/1.1" 200 OK
-INFO:     127.0.0.1:60720 - "GET /static/total-core.js HTTP/1.1" 200 OK
-INFO:     127.0.0.1:60712 - "GET /static/scichart/scichart.browser.js HTTP/1.1" 200 OK
-INFO:     127.0.0.1:60712 - "GET /static/scichart/scichart2d.wasm HTTP/1.1" 200 OK
-INFO:     127.0.0.1:60712 - "GET /api/footprint/candles?symbol=BTCUSDT&exchange=binance&timeframe=1m&tick_size=1&ticks_per_row=1&limit=34 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:51666 - "GET /total-core-v2 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:51666 - "GET /static/total-core-v2.js HTTP/1.1" 200 OK
+INFO:     127.0.0.1:51666 - "GET /favicon.ico HTTP/1.1" 404 Not Found
+INFO:     127.0.0.1:51710 - "GET / HTTP/1.1" 200 OK
+INFO:     127.0.0.1:51710 - "GET /static/styles.css HTTP/1.1" 200 OK
+INFO:     127.0.0.1:51712 - "GET /static/fetch-history.js HTTP/1.1" 200 OK
+INFO:     127.0.0.1:51712 - "GET /api/data-coverage?exchange=kraken&symbol=BTC%2FUSD HTTP/1.1" 200 OK
+INFO:     127.0.0.1:51712 - "GET /total-core-v2 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:51712 - "GET /static/total-core-v2.js HTTP/1.1" 200 OK
+INFO:     127.0.0.1:51674 - "GET /total-core-v2 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:51674 - "GET /static/total-core-v2.js HTTP/1.1" 200 OK
+INFO:     127.0.0.1:58404 - "GET /total-core-v2 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:58404 - "GET /static/total-core-v2.js HTTP/1.1" 200 OK
+INFO:     127.0.0.1:58404 - "GET /api/footprint/candles?symbol=BTCUSDT&exchange=binance&timeframe=1m&tick_size=1&ticks_per_row=1&limit=100&start_time=1764979200000 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:58058 - "GET /total-core-v2 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:58058 - "GET /static/total-core-v2.js HTTP/1.1" 200 OK
+INFO:     127.0.0.1:58058 - "GET /api/footprint/candles?symbol=BTCUSDT&exchange=binance&timeframe=1m&tick_size=1&ticks_per_row=1&limit=100&start_time=1764979200000 HTTP/1.1" 200 OK

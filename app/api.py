@@ -257,6 +257,14 @@ def total_core():
     return serve_html_with_no_cache(path)
 
 
+@app.get("/total-core-v2")
+def total_core_v2():
+    path = REPO_ROOT / "frontend" / "total-core-v2.html"
+    if not path.exists():
+        raise HTTPException(status_code=404, detail="Total Core V2 not found")
+    return serve_html_with_no_cache(path)
+
+
 @app.get("/jesse")
 def jesse_page():
     path = REPO_ROOT / "frontend" / "jesse.html"
