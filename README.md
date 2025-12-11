@@ -1,6 +1,6 @@
 # TradeCore
 
-> **Professional-grade cryptocurrency trading analytics platform with order flow visualization, market microstructure analysis, and algorithmic trading tools.**
+> **trading analytics platform with order flow visualization, market microstructure analysis, and algorithmic trading tools.**
 
 [![Python 3.11+](https://img.shields.io/badge/python-3.11+-blue.svg)](https://www.python.org/downloads/)
 [![FastAPI](https://img.shields.io/badge/FastAPI-0.100+-green.svg)](https://fastapi.tiangolo.com/)
