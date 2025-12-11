@@ -16,6 +16,7 @@ import math
 from app.ingestion.trades import TradesDB, PARQUET_DIR
 from app.ingestion.bookdepth import BookDepthDB, BOOKDEPTH_DATA_DIR, get_bookdepth_db
 from app.ingestion.bybit_orderbook import BybitOrderBookDB, BYBIT_ORDERBOOK_PARQUET_DIR
+from app.ingestion.bybit_trades import BybitTradesDB, BYBIT_PARQUET_DIR
 
 logger = logging.getLogger(__name__)
 
@@ -23,20 +24,32 @@ router = APIRouter(prefix="/api/heatmap", tags=["heatmap"])
 
 # Lazy-loaded database instances
 _trades_db: Optional[TradesDB] = None
+_trades_db_bybit: Optional[BybitTradesDB] = None
 _bookdepth_db: Optional[BookDepthDB] = None
 
 
-def get_trades_db() -> TradesDB:
-    """Lazy-load the TradesDB instance."""
-    global _trades_db
-    if _trades_db is None:
-        if not PARQUET_DIR.exists() or not list(PARQUET_DIR.glob("*.parquet")):
-            raise HTTPException(
-                status_code=503,
-                detail="Trade data not available. Run: python -m app.ingestion.trades convert"
-            )
-        _trades_db = TradesDB()
-    return _trades_db
+def get_trades_db(exchange: str = "binance"):
+    """Lazy-load the TradesDB instance for the specified exchange."""
+    global _trades_db, _trades_db_bybit
+    
+    if exchange == "bybit":
+        if _trades_db_bybit is None:
+            if not BYBIT_PARQUET_DIR.exists() or not list(BYBIT_PARQUET_DIR.glob("*.parquet")):
+                raise HTTPException(
+                    status_code=503,
+                    detail="Bybit trade data not available. Run: python -m app.ingestion.bybit_trades convert"
+                )
+            _trades_db_bybit = BybitTradesDB()
+        return _trades_db_bybit
+    else:
+        if _trades_db is None:
+            if not PARQUET_DIR.exists() or not list(PARQUET_DIR.glob("*.parquet")):
+                raise HTTPException(
+                    status_code=503,
+                    detail="Trade data not available. Run: python -m app.ingestion.trades convert"
+                )
+            _trades_db = TradesDB()
+        return _trades_db
 
 
 def get_depth_db() -> BookDepthDB:
@@ -146,6 +159,7 @@ def get_heatmap_stats():
 @router.get("/bubbles", response_model=VolumeBubblesResponse)
 def get_volume_bubbles(
     symbol: str = Query("BTCUSDT", description="Trading pair"),
+    exchange: str = Query("bybit", description="Exchange: binance or bybit"),
     start_ts: Optional[int] = Query(None, description="Start timestamp (ms)"),
     end_ts: Optional[int] = Query(None, description="End timestamp (ms)"),
     min_size_usd: float = Query(50000, description="Minimum trade size in USD"),
@@ -157,7 +171,7 @@ def get_volume_bubbles(
     
     Filters trades by min/max USD size to show trades within a specific range.
     """
-    trades_db = get_trades_db()
+    trades_db = get_trades_db(exchange)
     
     # Get time range if not specified
     if start_ts is None or end_ts is None:
