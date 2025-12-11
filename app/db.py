@@ -2,6 +2,7 @@ import duckdb
 import pandas as pd
 import logging
 from pathlib import Path
+from typing import Optional
 
 logger = logging.getLogger(__name__)
 
@@ -205,7 +206,16 @@ class Database:
         except Exception as e:
             logger.error(f"Failed to delete hmm_results for prefix {prefix}: {e}")
 
-    def get_hmm_results(self, exchange: str, symbol: str, timeframe: str, model_id: str, limit: int = 500, start_date: str = None, end_date: str = None) -> pd.DataFrame:
+    def get_hmm_results(
+        self,
+        exchange: str,
+        symbol: str,
+        timeframe: str,
+        model_id: str,
+        limit: Optional[int] = 500,
+        start_date: str = None,
+        end_date: str = None,
+    ) -> pd.DataFrame:
         query = """
             SELECT timestamp, regime, prob_0, prob_1, prob_2, prob_3, prob_4
             FROM hmm_results
@@ -218,8 +228,10 @@ class Database:
         if end_date:
             query += " AND timestamp <= ?"
             params.append(end_date)
-        query += " ORDER BY timestamp DESC LIMIT ?"
-        params.append(limit)
+        query += " ORDER BY timestamp DESC"
+        if limit is not None:
+            query += " LIMIT ?"
+            params.append(limit)
         df = self.conn.execute(query, params).df()
         return df.iloc[::-1] if not df.empty else df
 

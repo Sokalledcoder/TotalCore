@@ -13,42 +13,70 @@ MODELS_DIR = Path("models/hmm")
 MODELS_DIR.mkdir(parents=True, exist_ok=True)
 
 class FeatureEngineer:
-    feature_cols = ['log_ret', 'volatility', 'vol_z', 'adx', 'rsi']
+    feature_cols_default = ['log_ret', 'volatility', 'vol_z', 'adx', 'rsi']
+    feature_cols_advanced = [
+        'log_ret',          # level
+        'vol_short',        # short-term vol
+        'vol_long',         # long-term vol
+        'trend_mean',       # rolling mean of returns
+        'vol_z',            # volume z-score
+        'adx',              # trend strength
+    ]
 
     @staticmethod
-    def prepare_features(df: pd.DataFrame, window: int = 14) -> pd.DataFrame:
-        """Engineer base features (unscaled)."""
+    def _volume_zscore(series: pd.Series, window: int) -> pd.Series:
+        vol_mean = series.rolling(window=window).mean()
+        vol_std = series.rolling(window=window).std()
+        return (series - vol_mean) / (vol_std + 1e-8)
+
+    @staticmethod
+    def prepare_features(
+        df: pd.DataFrame,
+        profile: str = "default",
+        window: int = 14,
+        vol_short: int = 20,
+        vol_long: int = 100,
+        trend_window: int = 50,
+        vol_z_window: int = 50,
+        adx_len: int = 14,
+    ) -> pd.DataFrame:
+        """Engineer features (unscaled) according to the chosen profile."""
         df = df.copy()
 
-        # 1. Log Returns
+        # Base: log returns
         df['log_ret'] = np.log(df['close'] / df['close'].shift(1))
 
-        # 2. Realized Volatility
+        if profile == "advanced":
+            df['vol_short'] = df['log_ret'].rolling(window=vol_short).std()
+            df['vol_long'] = df['log_ret'].rolling(window=vol_long).std()
+            df['trend_mean'] = df['log_ret'].rolling(window=trend_window).mean()
+            df['vol_z'] = FeatureEngineer._volume_zscore(df['volume'], vol_z_window)
+
+            adx_df = ta.adx(df['high'], df['low'], df['close'], length=adx_len)
+            if adx_df is not None and not adx_df.empty:
+                adx_col = f"ADX_{adx_len}"
+                df['adx'] = adx_df[adx_col] if adx_col in adx_df.columns else adx_df.iloc[:, 0]
+            else:
+                df['adx'] = 0.0
+
+            df.dropna(inplace=True)
+            return df[FeatureEngineer.feature_cols_advanced]
+
+        # default / legacy-compatible set (kept for backward compatibility)
         df['volatility'] = df['log_ret'].rolling(window=window).std()
+        df['vol_z'] = FeatureEngineer._volume_zscore(df['volume'], window * 2)
 
-        # 3. Volume Z-Score
-        vol_mean = df['volume'].rolling(window=window*2).mean()
-        vol_std = df['volume'].rolling(window=window*2).std()
-        df['vol_z'] = (df['volume'] - vol_mean) / (vol_std + 1e-8)
-
-        # 4. ADX
         adx_df = ta.adx(df['high'], df['low'], df['close'], length=window)
         if adx_df is not None and not adx_df.empty:
             adx_col = f"ADX_{window}"
-            if adx_col in adx_df.columns:
-                df['adx'] = adx_df[adx_col]
-            else:
-                df['adx'] = adx_df.iloc[:, 0]
+            df['adx'] = adx_df[adx_col] if adx_col in adx_df.columns else adx_df.iloc[:, 0]
         else:
             df['adx'] = 0.0
 
-        # 5. RSI
         df['rsi'] = ta.rsi(df['close'], length=window)
 
-        # Drop NaNs created by rolling windows
         df.dropna(inplace=True)
-
-        return df[FeatureEngineer.feature_cols]
+        return df[FeatureEngineer.feature_cols_default]
 
     @staticmethod
     def scale_features(features: pd.DataFrame, mean: Optional[np.ndarray] = None, std: Optional[np.ndarray] = None):
@@ -66,7 +94,8 @@ class HMMModel:
         self.n_iter = n_iter
         self.model: Optional[GaussianHMM] = None
         self.is_fitted = False
-        self.feature_cols = FeatureEngineer.feature_cols
+        self.feature_cols = FeatureEngineer.feature_cols_default
+        self.profile: str = "default"
         self.regime_labels: Dict[int, str] = {}
         self.scaler_mean: Optional[np.ndarray] = None
         self.scaler_std: Optional[np.ndarray] = None
@@ -86,8 +115,22 @@ class HMMModel:
         p += n_states * n_features  # diag covariances
         return -2 * loglik + p * np.log(max(n_samples, 1))
 
-    def train(self, df: pd.DataFrame, auto_k: bool = False, k_min: int = 2, k_max: int = 4, strict_k: bool = False, legacy: bool = False):
-        features_raw = FeatureEngineer.prepare_features(df)
+    def train(
+        self,
+        df: pd.DataFrame,
+        auto_k: bool = False,
+        k_min: int = 2,
+        k_max: int = 4,
+        strict_k: bool = False,
+        legacy: bool = False,
+        profile: str = "default",
+    ):
+        features_raw = FeatureEngineer.prepare_features(
+            df,
+            profile=profile,
+        )
+        self.feature_cols = FeatureEngineer.feature_cols_advanced if profile == "advanced" else FeatureEngineer.feature_cols_default
+        self.profile = profile
         if features_raw.empty:
             raise ValueError("Not enough data to generate features")
 
@@ -216,14 +259,14 @@ class HMMModel:
     def predict(self, df: pd.DataFrame) -> np.ndarray:
         if not self.is_fitted:
             raise ValueError("Model is not fitted")
-        features = FeatureEngineer.prepare_features(df)
+        features = FeatureEngineer.prepare_features(df, profile=self.profile)
         Xs, _, _ = FeatureEngineer.scale_features(features, self.scaler_mean, self.scaler_std)
         return self.model.predict(Xs)
 
     def predict_proba(self, df: pd.DataFrame) -> np.ndarray:
         if not self.is_fitted:
             raise ValueError("Model is not fitted")
-        features = FeatureEngineer.prepare_features(df)
+        features = FeatureEngineer.prepare_features(df, profile=self.profile)
         Xs, _, _ = FeatureEngineer.scale_features(features, self.scaler_mean, self.scaler_std)
         return self.model.predict_proba(Xs)
 
@@ -237,15 +280,18 @@ class HMMModel:
             if state_data.empty:
                 stats[state] = {"count": 0}
                 continue
-                
+
+            def col_mean(name: str) -> Optional[float]:
+                return float(state_data[name].mean()) if name in state_data.columns else None
+
             stats[state] = {
                 "label": self.regime_labels.get(state, f"Regime {state}"),
                 "count": len(state_data),
-                "avg_return": float(state_data['log_ret'].mean()),
-                "volatility": float(state_data['log_ret'].std()),
-                "avg_adx": float(state_data['adx'].mean()),
-                "avg_rsi": float(state_data['rsi'].mean()),
-                "avg_vol_z": float(state_data['vol_z'].mean())
+                "avg_return": col_mean('log_ret'),
+                "volatility": float(state_data['log_ret'].std()) if 'log_ret' in state_data.columns else None,
+                "avg_adx": col_mean('adx'),
+                "avg_rsi": col_mean('rsi'),
+                "avg_vol_z": col_mean('vol_z'),
             }
         return stats
 
@@ -261,4 +307,17 @@ class HMMModel:
         if not path.exists():
             raise FileNotFoundError(f"Model {name} not found")
         with open(path, "rb") as f:
-            return pickle.load(f)
+            model = pickle.load(f)
+        # Backward compatibility: older pickles may lack profile attribute
+        if not hasattr(model, "profile"):
+            # Infer from feature_cols length
+            if hasattr(model, "feature_cols") and len(model.feature_cols) == len(FeatureEngineer.feature_cols_advanced):
+                model.profile = "advanced"
+            else:
+                model.profile = "default"
+        # Ensure feature_cols aligns with profile
+        if model.profile == "advanced":
+            model.feature_cols = FeatureEngineer.feature_cols_advanced
+        else:
+            model.feature_cols = FeatureEngineer.feature_cols_default
+        return model

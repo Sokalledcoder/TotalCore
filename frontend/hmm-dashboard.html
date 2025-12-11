@@ -102,6 +102,7 @@
               <option value="legacy">Legacy (no scaling, full cov)</option>
               <option value="scaled">Scaled (diag cov)</option>
               <option value="scaled_autok">Scaled + Auto-K (diag)</option>
+              <option value="advanced" selected>Advanced (vol+volume+trend+ADX, scaled)</option>
             </select>
         </div>
         <div class="field" style="display:flex; flex-direction:column; gap:4px; min-width:140px;">
@@ -131,6 +132,7 @@
         </div>
         <button id="loadRun" class="secondary">Load Run</button>
         <button id="deleteRun" class="secondary">Delete Run</button>
+        <button id="exportJesse" class="secondary">Export for Jesse</button>
       </div>
       <p class="subtitle" style="margin-top:8px;">Tip: more states = finer regime splits but higher overfit risk. Leave Start/End blank to train on all available history.</p>
       <div id="statsPanel"></div>
@@ -152,7 +154,7 @@
         <div class="button-row" style="margin-left:auto;">
           <div class="field" style="display:flex; align-items:center; gap:6px;">
             <label class="inline-note">Candles</label>
-            <input type="number" id="candleLimit" value="1000" min="100" max="5000" style="width:80px;">
+            <input type="number" id="candleLimit" value="2000" min="500" max="50000" style="width:90px;">
           </div>
           <label class="inline-note"><input type="checkbox" id="autoRefresh" style="margin-right:4px;">Auto-refresh price only (10s)</label>
           <span id="lastPrice" class="inline-note"></span>
@@ -163,6 +165,6 @@
       <div id="probStats" class="stat-card" style="margin-top:10px;"></div>
     </section>
   </main>
-  <script src="/static/hmm-dashboard.js?v=5" type="module"></script>
+  <script src="/static/hmm-dashboard.js?v=6" type="module"></script>
 </body>
 </html>

@@ -51,5 +51,8 @@ frontend/node_modules/
 # Local S3 mirror
 VolumeCore_latest/
 
-# External projects
+<<<<<<< Updated upstream
+# External projects / workspace artifacts
 Jesse/
+/Jesse/tradecore-jesse/.env
+/Jesse/tradecore-jesse/docker/postgres-data/

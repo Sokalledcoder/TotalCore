@@ -11,6 +11,7 @@ const lastPriceEl = document.getElementById('lastPrice');
 const savedRuns = document.getElementById('savedRuns');
 const loadRunBtn = document.getElementById('loadRun');
 const deleteRunBtn = document.getElementById('deleteRun');
+const exportJesseBtn = document.getElementById('exportJesse');
 const candleLimitInput = document.getElementById('candleLimit');
 const autoK = document.getElementById('autoK');
 const kMinInput = document.getElementById('k_min');
@@ -60,6 +61,10 @@ trainBtn.addEventListener('click', async () => {
         auto_k = true;
         strict_k = false;
         legacy = false;
+    } else if (profile === 'advanced') {
+        auto_k = false;
+        strict_k = true;
+        legacy = false;
     }
 
     trainBtn.disabled = true;
@@ -93,6 +98,7 @@ refreshBtn.addEventListener('click', () => loadData(getSelectedRunId()));
 loadRunBtn.addEventListener('click', () => loadData(getSelectedRunId()));
 deleteRunBtn.addEventListener('click', deleteSavedRun);
 savedRuns?.addEventListener('change', loadSelectedRun);
+exportJesseBtn?.addEventListener('click', exportForJesse);
 
 populateRuns();
 
@@ -141,6 +147,39 @@ async function deleteSavedRun() {
     if (!confirm(`Delete saved run ${id}?`)) return;
     await fetch(`${API_BASE}/models/${id}`, { method: 'DELETE' });
     await populateRuns();
+}
+
+async function exportForJesse() {
+    const modelId = getSelectedRunId();
+    if (!modelId) {
+        alert('Select a saved run first.');
+        return;
+    }
+    const limit = parseInt(candleLimitInput?.value || '1000', 10);
+    const start_date = startInput.value || '';
+    const end_date = endInput.value || '';
+
+    const qs = new URLSearchParams({ model_id: modelId, limit: limit });
+    if (start_date) qs.set('start_date', start_date);
+    if (end_date) qs.set('end_date', end_date);
+
+    exportJesseBtn.disabled = true;
+    const orig = exportJesseBtn.textContent;
+    exportJesseBtn.textContent = 'Exporting...';
+    try {
+        const res = await fetch(`${API_BASE}/export/jesse?${qs.toString()}`, { method: 'POST' });
+        if (!res.ok) {
+            const err = await res.json().catch(() => ({}));
+            throw new Error(err.detail || `Export failed (${res.status})`);
+        }
+        const payload = await res.json();
+        alert(`Exported regimes for ${modelId}\\nSaved to: ${payload.export_path}\\nCount: ${payload.count}`);
+    } catch (e) {
+        alert(e.message);
+    } finally {
+        exportJesseBtn.disabled = false;
+        exportJesseBtn.textContent = orig;
+    }
 }
 
 
@@ -201,7 +240,8 @@ function renderStats(stats, meta = {}) {
         if (meta.diagnostics) {
             const d = meta.diagnostics;
             const stateCounts = d.state_counts ? d.state_counts.join(', ') : '';
-            diag = `<br>K (used): ${d.k}<br>loglik train: ${d.loglik_train?.toFixed(2)}<br>loglik val: ${d.loglik_val?.toFixed(2)}<br>BIC: ${d.bic?.toFixed(2)}<br>state counts: ${stateCounts}`;
+            const fmt = (v) => (v === null || v === undefined || Number.isNaN(v)) ? '—' : Number(v).toFixed(2);
+            diag = `<br>K (used): ${d.k}<br>loglik train: ${fmt(d.loglik_train)}<br>loglik val: ${fmt(d.loglik_val)}<br>BIC: ${fmt(d.bic)}<br>state counts: ${stateCounts}`;
             if (d.mode) diag += `<br>mode: ${d.mode}`;
         }
         const profile = meta.profile ? `<br>profile: ${meta.profile}` : '';
@@ -221,12 +261,15 @@ function renderStats(stats, meta = {}) {
         const div = document.createElement('div');
         div.className = 'stat-card';
         div.style.borderLeft = `4px solid ${color}`;
+        const fmtPct = (v) => (v === null || v === undefined || Number.isNaN(v)) ? '—' : `${(v*100).toFixed(4)}%`;
+        const fmt = (v) => (v === null || v === undefined || Number.isNaN(v)) ? '—' : Number(v).toFixed(2);
+
         div.innerHTML = `
             <strong>${label}</strong><br>
-            Avg Return: ${(metrics.avg_return * 100).toFixed(4)}%<br>
-            Volatility: ${(metrics.volatility * 100).toFixed(4)}%<br>
-            ADX: ${metrics.avg_adx.toFixed(2)}<br>
-            RSI: ${metrics.avg_rsi.toFixed(2)}
+            Avg Return: ${fmtPct(metrics.avg_return)}<br>
+            Volatility: ${fmtPct(metrics.volatility)}<br>
+            ADX: ${fmt(metrics.avg_adx)}<br>
+            RSI: ${fmt(metrics.avg_rsi)}
         `;
         statsPanel.appendChild(div);
     }
@@ -338,7 +381,7 @@ function renderCharts(data) {
 
     // Last price badge
     const last = data[data.length - 1];
-    if (lastPriceEl) {
+    if (lastPriceEl && last && last.close != null) {
         const ts = new Date(last.timestamp).toLocaleString();
         lastPriceEl.textContent = `Last price: ${last.close.toFixed(2)} @ ${ts}`;
     }
@@ -399,7 +442,8 @@ function renderProbStats(data) {
     let rows = '';
     last.probs.forEach((p, idx) => {
         const label = labels[idx] || `Regime ${idx}`;
-        rows += `<tr><td>${label}</td><td>${(p*100).toFixed(2)}%</td></tr>`;
+        const cell = (p === null || p === undefined || Number.isNaN(p)) ? '—' : `${(p*100).toFixed(2)}%`;
+        rows += `<tr><td>${label}</td><td>${cell}</td></tr>`;
     });
     pane.innerHTML = `
       <strong>Latest Probabilities</strong>
