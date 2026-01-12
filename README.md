@@ -244,7 +244,7 @@ tail -f server.log
 ```
 
 ### Data not loading
-1. Check if server is running: `curl http://localhost:8001/`
+1. Check if server is running: `curl http://localhost:8000/`
 2. Check logs: `tail -f server.log`
 3. Verify data exists: `ls data/lake/`
 

@@ -12,7 +12,7 @@
 python -m venv .venv && source .venv/bin/activate
 pip install -e .
 scripts/run_api.sh        # restart uvicorn in the background
-curl -s http://localhost:8001/ # health check (port 8001, not 8000)
+curl -s http://localhost:8000/ # health check (API on 8000)
 ```
 No automated test suite yet; add pytest invocations under this section when available.
 

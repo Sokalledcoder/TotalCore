@@ -12,9 +12,15 @@ import os
 import glob
 from typing import Tuple
 import time
+import json
 
 router = APIRouter(prefix="/api/hmm", tags=["hmm"])
 logger = logging.getLogger(__name__)
+
+# Where to drop Jesse-consumable artifacts
+REPO_ROOT = Path(__file__).resolve().parents[2]
+JESSE_MODELS_DIR = REPO_ROOT / "Jesse" / "tradecore-jesse" / "custom_indicators" / "hmm_models"
+JESSE_MODELS_DIR.mkdir(parents=True, exist_ok=True)
 
 class TrainRequest(BaseModel):
     exchange: str
@@ -28,6 +34,7 @@ class TrainRequest(BaseModel):
     k_max: int = 4
     strict_k: bool = False
     legacy: bool = False
+    profile: str = "default"  # default, advanced, legacy
 
 class RegimeResponse(BaseModel):
     timestamp: datetime
@@ -58,7 +65,8 @@ def train_model(req: TrainRequest, background_tasks: BackgroundTasks):
             k_min=req.k_min,
             k_max=req.k_max,
             strict_k=req.strict_k,
-            legacy=req.legacy,
+            legacy=req.legacy or req.profile == "legacy",
+            profile=req.profile if req.profile != "legacy" else "default",
         )
         
         # Save model with unique id (timestamped)
@@ -66,6 +74,7 @@ def train_model(req: TrainRequest, background_tasks: BackgroundTasks):
         model_name = f"{req.exchange}_{req.symbol.replace('/', '-')}_{req.timeframe}_{ts}"
         model.save(model_name)
         
+        diagnostics["profile"] = req.profile
         return {"status": "success", "stats": stats, "model_id": model_name, "diagnostics": diagnostics}
     except Exception as e:
         logger.exception("Training failed")
@@ -82,6 +91,7 @@ def get_regime(
     persist: bool = True,
     use_persisted: bool = True,
     model_id: Optional[str] = None,
+    auto_window: bool = True,
 ):
     """Get regime history (optionally persisted)."""
     # Resolve model id: use provided, else pick latest matching prefix
@@ -120,10 +130,11 @@ def get_regime(
                     "low": float(o.low) if o is not None else None,
                     "close": float(o.close) if o is not None else None,
                 })
-            return {"data": results[-limit:], "labels": model.regime_labels}
+            slice_results = results if limit is None else results[-limit:]
+            return {"data": slice_results, "labels": model.regime_labels}
 
     # If no window provided, bound the window to the last N buckets to avoid huge scans
-    if start_date is None and end_date is None and timeframe != "1m":
+    if auto_window and start_date is None and end_date is None and timeframe != "1m":
         # derive end from latest 1m
         latest = db.conn.execute(
             """
@@ -140,15 +151,31 @@ def get_regime(
             start_date = start_dt.isoformat()
             end_date = latest.isoformat()
 
+    # If no window provided, bound by limit to avoid full-history pulls
+    if auto_window and start_date is None and end_date is None:
+        latest = db.conn.execute(
+            """
+            SELECT max(timestamp) as ts
+            FROM market_data
+            WHERE exchange=? AND symbol=? AND timeframe=?
+            """,
+            [exchange, symbol, timeframe],
+        ).fetchone()[0]
+        if latest:
+            from datetime import timedelta
+            bucket_ms = TIMEFRAME_BUCKET_MS.get(timeframe, 60_000)
+            start_dt = latest - timedelta(milliseconds=bucket_ms * limit)
+            start_date = start_dt.isoformat()
+            end_date = latest.isoformat()
+
     df = db.get_market_data(exchange, symbol, timeframe, start_date, end_date)
     if df.empty:
         raise HTTPException(status_code=404, detail="No data found")
 
     try:
+        features = FeatureEngineer.prepare_features(df, profile=model.profile if hasattr(model, "profile") else "default")
         probs = model.predict_proba(df)
         states = model.predict(df)
-
-        features = FeatureEngineer.prepare_features(df)
         timestamps = df.loc[features.index, 'timestamp']
 
         results = []
@@ -177,7 +204,8 @@ def get_regime(
             import pandas as pd
             db.insert_hmm_results(pd.DataFrame(rows_for_db), model_name, exchange, symbol, timeframe)
 
-        return {"data": results[-limit:], "labels": model.regime_labels}
+        slice_results = results if limit is None else results[-limit:]
+        return {"data": slice_results, "labels": model.regime_labels}
     except Exception as e:
         logger.exception("Inference failed")
         raise HTTPException(status_code=500, detail=str(e))
@@ -310,4 +338,78 @@ def latest_regime(exchange: Optional[str] = None, symbol: Optional[str] = None, 
         "probs": probs[-1].tolist(),
         "labels": model.regime_labels,
         "price": float(df.iloc[-1]['close'])
+    }
+
+
+@router.post("/export/jesse")
+def export_for_jesse(
+    model_id: str,
+    limit: int = 5000,
+    start_date: Optional[str] = None,
+    end_date: Optional[str] = None,
+):
+    """
+    Export a trained HMM model's regime series to a JSON that the Jesse indicator can consume.
+
+    The file is written under Jesse/tradecore-jesse/custom_indicators/hmm_models/{model_id}.series.json
+    and also returned in the response.
+    """
+    exchange, symbol, timeframe = _parse_model_id(model_id)
+    try:
+        _ = HMMModel.load(model_id)
+    except FileNotFoundError:
+        raise HTTPException(status_code=404, detail="Model not found. Train it first.")
+
+    # For export, skip auto windowing and fetch full history; then export the full persisted set (no limit).
+    export_limit = None
+    payload = get_regime(
+        exchange=exchange,
+        symbol=symbol,
+        timeframe=timeframe,
+        limit=export_limit,
+        start_date=start_date,
+        end_date=end_date,
+        persist=True,
+        use_persisted=False,  # force recompute/persist with the larger window
+        model_id=model_id,
+        auto_window=False,
+    )
+
+    # Fetch full persisted set for this model (no limit) to export
+    persisted = db.get_hmm_results(exchange, symbol, timeframe, model_id, limit=None, start_date=start_date, end_date=end_date)
+    data = persisted.to_dict(orient="records") if not persisted.empty else payload["data"]
+
+    for row in data:
+        ts = row["timestamp"]
+        if isinstance(ts, datetime):
+            row["ts_ms"] = int(ts.timestamp() * 1000)
+        else:
+            row["ts_ms"] = int(pd.to_datetime(ts).timestamp() * 1000)
+
+    out = {
+        "model_id": model_id,
+        "exchange": exchange,
+        "symbol": symbol,
+        "timeframe": timeframe,
+        "labels": payload.get("labels", {}),
+        "data": [
+            {
+                "ts": r["ts_ms"],
+                "regime": r["regime"],
+                "probs": (r.get("probs", []) or [r.get(f"prob_{j}") for j in range(5) if r.get(f"prob_{j}") is not None]),
+            }
+            for r in data
+        ],
+    }
+
+    out_path = JESSE_MODELS_DIR / f"{model_id}.series.json"
+    out_path.parent.mkdir(parents=True, exist_ok=True)
+    with out_path.open("w") as f:
+        json.dump(out, f, indent=2, default=str)
+
+    return {
+        "status": "ok",
+        "export_path": str(out_path),
+        "count": len(out["data"]),
+        "model_id": model_id,
     }

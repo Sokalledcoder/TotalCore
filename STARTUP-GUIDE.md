@@ -19,7 +19,7 @@ bash scripts/run_jesse.sh up
 ```
 
 **Access:**
-- TradeCore: http://localhost:8001/
+- TradeCore: http://localhost:8000/
 - Jesse Dashboard: http://localhost:9000/ (password: `tradecore`)
 
 ---
@@ -28,12 +28,12 @@ bash scripts/run_jesse.sh up
 
 | Port | Service | Status |
 |------|---------|--------|
-| **8000** | Reserved (Coolify/other) | DO NOT USE |
-| **8001** | TradeCore API | Primary port |
+| **8000** | TradeCore API | Primary port |
+| **8001** | (unused) | leave free |
 | **9000** | Jesse Dashboard | Required for full navigation |
 | **8888** | Jesse Jupyter | Optional |
 
-**Important**: TradeCore uses port **8001** because port 8000 is occupied by another service on this VM.
+**Important**: TradeCore API runs on **8000**. Free 8000 before starting.
 
 ---
 
@@ -53,7 +53,7 @@ bash scripts/run_api.sh
 
 **Verify:**
 ```bash
-curl http://localhost:8001/
+curl http://localhost:8000/
 # Should return HTML for Fetch History page
 ```
 
@@ -107,12 +107,12 @@ bash scripts/run_jesse.sh down
 
 | URL | Page | Description |
 |-----|------|-------------|
-| http://localhost:8001/ | Fetch History | CCXT data ingestion from exchanges |
-| http://localhost:8001/control-panel | Control Panel | RL experiment launcher |
-| http://localhost:8001/run-insights | Run Insights | ML experiment results |
-| http://localhost:8001/hmm-dashboard | HMM Lab | Hidden Markov Model regime detection |
-| http://localhost:8001/total-core | **Total Core** | Order flow visualization dashboard |
-| http://localhost:8001/backtest-lab | Backtest Lab | Backtesting interface |
+| http://localhost:8000/ | Fetch History | CCXT data ingestion from exchanges |
+| http://localhost:8000/control-panel | Control Panel | RL experiment launcher |
+| http://localhost:8000/run-insights | Run Insights | ML experiment results |
+| http://localhost:8000/hmm-dashboard | HMM Lab | Hidden Markov Model regime detection |
+| http://localhost:8000/total-core | **Total Core** | Order flow visualization dashboard |
+| http://localhost:8000/backtest-lab | Backtest Lab | Backtesting interface |
 | **http://localhost:9000** | **Jesse ↗** | Jesse trading dashboard (external service) |
 
 ---

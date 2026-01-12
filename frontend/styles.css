@@ -65,8 +65,17 @@ body {
 
 main {
   max-width: 1080px;
+  width: 100%;
   margin: 0 auto;
   padding: 2.5rem 1.5rem 4rem;
+}
+
+.wide-panel {
+  max-width: 1080px;
+  width: 100%;
+  margin-left: auto;
+  margin-right: auto;
+  padding-bottom: 0.5rem;
 }
 
 h1 {
@@ -190,6 +199,23 @@ button.ghost:hover {
   box-shadow: none;
   border-color: rgba(255, 255, 255, 0.4);
   transform: none;
+}
+
+.hint {
+  color: #9aa0ab;
+  font-size: 0.85rem;
+}
+
+.code-block {
+  background: #0c0d10;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 12px;
+  padding: 0.75rem 1rem;
+  font-family: 'JetBrains Mono', 'SFMono-Regular', 'Menlo', monospace;
+  font-size: 0.9rem;
+  color: #e8ecff;
+  overflow-x: auto;
+  margin-top: 0.6rem;
 }
 
 table {
@@ -325,6 +351,45 @@ table.clickable tr.selected td {
   background: rgba(92, 201, 255, 0.12);
 }
 
+button.ghost {
+  background: transparent;
+  color: #d5dbff;
+  border: 1px solid rgba(255,255,255,0.12);
+  padding: 0.35rem 0.75rem;
+  border-radius: 8px;
+  cursor: pointer;
+}
+
+button.danger {
+  border-color: rgba(255, 99, 99, 0.35);
+  color: #ff7777;
+}
+
+.chart-toolbar {
+  display: flex;
+  justify-content: flex-start;
+  gap: 0.5rem;
+  margin-top: 0.5rem;
+  align-items: center;
+}
+
+.btn-group button {
+  margin-right: 0.35rem;
+}
+
+#chartContainer {
+  position: relative;
+  width: 100%;
+  height: 860px;
+}
+
+.chart-shell {
+  width: 100%;
+  max-width: 1080px;
+  margin: 0 auto;
+  padding-bottom: 80px;
+}
+
 .detail-grid {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
@@ -358,9 +423,37 @@ table.clickable tr.selected td {
   margin-top: 1rem;
 }
 
+.metrics-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+  gap: 1rem;
+}
+
+.metrics-grid table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.metrics-grid td {
+  padding: 4px 6px;
+  font-size: 0.9rem;
+}
+
+.metrics-grid tr:nth-child(odd) td {
+  background: rgba(255, 255, 255, 0.03);
+}
+
 .table-wrapper {
   overflow-x: auto;
   margin-top: 1rem;
+}
+
+.runs-wrapper {
+  max-height: 360px;
+  overflow-y: auto;
+  margin-top: 0.75rem;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 12px;
 }
 
 #actionSample th,

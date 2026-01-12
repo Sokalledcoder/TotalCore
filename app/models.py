@@ -36,6 +36,11 @@ class JobOptions(BaseModel):
     full_history: bool = False
 
 
+class BacktestEngine(str, Enum):
+    backtesting_py = "backtesting_py"
+    pybroker = "pybroker"
+
+
 class DataJobCreate(BaseModel):
     exchange: Literal["kraken"]
     symbol: str = Field(..., description="Unified CCXT symbol, e.g., BTC/USD")
@@ -172,3 +177,43 @@ class RunActionResponse(BaseModel):
     global_step_max: Optional[int]
     series: Dict[str, RunActionSeries] = Field(default_factory=dict)
     sample_rows: List[Dict[str, Any]] = Field(default_factory=list)
+
+
+# ---------- Backtesting / Strategy Lab ----------
+
+
+class BacktestDataRef(BaseModel):
+    exchange: str
+    symbols: List[str]
+    timeframe: str
+    start: Optional[str] = Field(None, description="ISO datetime inclusive")
+    end: Optional[str] = Field(None, description="ISO datetime inclusive")
+    limit: Optional[int] = Field(None, description="Max rows to load (per symbol).")
+
+
+class BacktestJobCreate(BaseModel):
+    strategy_id: str
+    engine: BacktestEngine
+    params: Dict[str, Any] = Field(default_factory=dict)
+    data: BacktestDataRef
+    cv_config: Dict[str, Any] = Field(default_factory=dict)
+    optimizer: Optional[Dict[str, Any]] = Field(
+        None, description="Optional Optuna study configuration for this job."
+    )
+
+
+class BacktestJob(BaseModel):
+    id: str
+    status: JobStatus
+    progress: float = 0.0
+    created_at: datetime
+    updated_at: datetime
+    engine: BacktestEngine
+    strategy_id: str
+    params: Dict[str, Any]
+    data: BacktestDataRef
+    cv_config: Dict[str, Any] = Field(default_factory=dict)
+    optimizer: Dict[str, Any] = Field(default_factory=dict)
+    metrics: Dict[str, Any] = Field(default_factory=dict)
+    artifacts: Dict[str, Any] = Field(default_factory=dict)
+    error: Optional[str] = None

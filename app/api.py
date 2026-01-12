@@ -281,6 +281,22 @@ def backtest_lab():
     return serve_html_with_no_cache(path)
 
 
+@app.get("/backtest-lab")
+def backtest_lab():
+    path = REPO_ROOT / "frontend" / "backtest-lab.html"
+    if not path.exists():
+        raise HTTPException(status_code=404, detail="Backtest Lab page not found")
+    return FileResponse(path)
+
+
+@app.get("/jesse")
+def jesse_dashboard():
+    path = REPO_ROOT / "frontend" / "jesse.html"
+    if not path.exists():
+        raise HTTPException(status_code=404, detail="Jesse page not found")
+    return FileResponse(path)
+
+
 @app.post("/api/data-jobs", response_model=DataJob)
 def create_job(payload: DataJobCreate, background_tasks: BackgroundTasks):
     job_id = str(uuid.uuid4())
